@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>感知模擬：純淨清醒版</title>
+    <title>感知模擬：門口焦慮版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; -webkit-user-select: none; font-family: sans-serif; }
@@ -10,31 +10,27 @@
             position: fixed; width: 100vw; height: 100vh;
             background-image: url('433436.jpg'); background-position: center; background-size: cover;
             z-index: 1; filter: grayscale(0.5) blur(2px); transform: scale(0.9);
-            transition: filter 3s ease-in-out, transform 3s ease-in-out, opacity 1s; 
+            transition: filter 2s, transform 2s, opacity 1s; 
         }
-        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; transition: opacity 3s; }
-        #white-out { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: #fff; opacity: 0; z-index: 3000; pointer-events: none; transition: opacity 1.5s; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; transition: opacity 2s; }
+        #white-out { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: #fff; opacity: 0; z-index: 3000; pointer-events: none; transition: opacity 1s; }
         
-        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; transition: color 2s, opacity 2s; }
-        #status { position: fixed; top: 15%; width: 100%; text-align: center; color: white; z-index: 20; text-shadow: 2px 2px 4px #000; pointer-events: none; transition: opacity 2s, color 2s; }
+        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; transition: all 1s; }
+        #status { position: fixed; top: 15%; width: 100%; text-align: center; color: white; z-index: 20; text-shadow: 2px 2px 4px #000; pointer-events: none; transition: all 1s; }
         
         #joy-base { position: fixed; bottom: 12%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 999; border: 2px solid #fff; transition: opacity 1s; }
         #joy-knob { position: absolute; width: 40px; height: 40px; background: #fff; border-radius: 50%; left: 30px; top: 30px; }
         
-        /* 修改後的按鈕：更低調、不擋視線 */
         #btn { 
-            position: fixed; bottom: 8%; left: 50%; transform: translateX(-50%);
-            padding: 10px 30px; background: rgba(255,255,255,0.1); 
-            color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; 
-            z-index: 5000; font-size: 0.9rem; letter-spacing: 2px;
-            transition: opacity 2s, background 0.5s; opacity: 1;
-            display: block;
+            position: fixed; bottom: 12%; right: 10%; 
+            padding: 12px 20px; background: #e74c3c; 
+            color: white; border: 2px solid #fff; border-radius: 50px; 
+            z-index: 5000; font-weight: bold; transition: all 0.3s;
         }
-        #btn.hidden { opacity: 0; pointer-events: none; }
-        #btn:active { background: rgba(255,255,255,0.3); }
+        #btn.clean { bottom: 8%; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.6); border-radius: 5px; }
 
         .whisper { position: fixed; color: #fff; z-index: 500; pointer-events: none; animation: fadeUp 2s forwards; font-weight: bold; text-shadow: 1px 1px 3px #000; }
-        @keyframes fadeUp { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-50px); } }
+        @keyframes fadeUp { 0% { opacity: 0; transform: scale(0.8); } 20% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: translateY(-60px) scale(0.9); } }
     </style>
 </head>
 <body>
@@ -44,21 +40,30 @@
     <div id="clock">--:--:--</div>
     <div id="status">第一關：夜市</div>
     <div id="joy-base"><div id="joy-knob"></div></div>
-    <button id="btn" onclick="recover(event)">找回意識 (0/3)</button>
+    <button id="btn" onclick="handleClick(event)">找回意識 (0/3)</button>
 
     <script>
         let isDementia = true;
         let count = 0;
         let stage = 1; 
         const bg = document.getElementById('bg');
-        const whiteOut = document.getElementById('white-out');
         const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        const clock = document.getElementById('clock');
+        const joy = document.getElementById('joy-base');
+        const vig = document.getElementById('vignette');
+
+        // 兩關不同的對話庫
+        const textsStage1 = ["這是哪？", "好吵...", "東西呢？", "慢一點...", "有人在看我..."];
+        const textsStage2 = ["這是我家嗎？", "怎麼打不開...", "鑰匙在哪裡？", "好陌生...", "我想進去...", "打不開...門壞了？"];
 
         function createWhisper(x, y, text) {
             const div = document.createElement('div');
             div.className = 'whisper';
             div.style.left = x + 'px'; div.style.top = y + 'px';
-            div.innerText = text || (stage === 1 ? "這是哪？" : "我想進去...");
+            // 根據關卡選擇對話
+            const list = (stage === 1) ? textsStage1 : textsStage2;
+            div.innerText = text || list[Math.floor(Math.random() * list.length)];
             document.body.appendChild(div);
             setTimeout(() => div.remove(), 2000);
         }
@@ -68,20 +73,23 @@
             createWhisper(e.touches[0].clientX, e.touches[0].clientY);
         });
 
-        function recover(e) {
+        function handleClick(e) {
             e.stopPropagation();
+            if (!isDementia) {
+                resetGame();
+                return;
+            }
+            
             count++;
             if (count < 3) {
-                btn.innerText = `捕捉中 (${count}/3)`;
+                btn.innerText = (stage === 1) ? `捕捉中 (${count}/3)` : `轉動把手... (${count}/3)`;
                 btn.style.left = (Math.random() * 80 + 10) + '%';
                 btn.style.top = (Math.random() * 80 + 10) + '%';
             } else if (stage === 1) {
                 stage = 2; count = 0;
-                document.getElementById('status').innerText = "第二關：家門口";
-                btn.innerText = "你是誰？ (0/3)";
+                status.innerText = "第二關：家門口";
+                btn.innerText = "打不開... (0/3)";
                 bg.style.backgroundImage = "url('433455.jpg')";
-                whiteOut.style.opacity = "0.6";
-                setTimeout(() => whiteOut.style.opacity = "0", 400);
             } else {
                 triggerEnding();
             }
@@ -89,42 +97,54 @@
 
         function triggerEnding() {
             isDementia = false;
-            btn.classList.add('hidden'); // 瞬間隱藏按鈕，還給視線清淨
-            document.getElementById('status').innerText = "記憶正在歸位...";
+            btn.style.opacity = '0';
+            btn.style.pointerEvents = 'none';
+            status.innerText = "門開了...";
 
-            // 噴發碎念後歸於寂靜
             for(let i=0; i<12; i++) {
-                setTimeout(() => createWhisper(Math.random()*window.innerWidth, Math.random()*window.innerHeight, "想起來了！"), i * 150);
+                setTimeout(() => createWhisper(Math.random()*window.innerWidth, Math.random()*window.innerHeight, "我想起來了"), i * 150);
             }
 
-            // 視覺極限淡入
-            whiteOut.style.opacity = "1";
             setTimeout(() => {
                 bg.style.filter = "none";
                 bg.style.transform = "scale(1)";
-                document.getElementById('vignette').style.opacity = "0";
-                document.getElementById('joy-base').style.opacity = "0";
+                vig.style.opacity = "0";
+                joy.style.opacity = "0";
+                clock.style.opacity = "0.3";
+                status.innerText = "這是我家，我進來了。";
                 
-                // UI 變淡，融入背景
-                document.getElementById('clock').style.opacity = "0.3";
-                document.getElementById('clock').style.color = "#fff";
-                document.getElementById('status').style.color = "rgba(255,255,255,0.8)";
-                document.getElementById('status').innerText = "這是我家。";
-                
-                whiteOut.style.opacity = "0";
-                
-                // 延遲出現「重新開始」按鈕，且按鈕變得極度低調
                 setTimeout(() => {
-                    btn.classList.remove('hidden');
-                    btn.style.left = "50%"; btn.style.top = "auto"; btn.style.bottom = "8%";
-                    btn.style.transform = "translateX(-50%)";
+                    btn.classList.add('clean');
+                    btn.style.opacity = '1';
+                    btn.style.pointerEvents = 'auto';
                     btn.innerText = "重啟模擬";
-                }, 4000); // 4秒後才出現，讓你靜靜看照片
-            }, 1500);
+                }, 3000);
+            }, 1000);
+        }
+
+        function resetGame() {
+            isDementia = true; count = 0; stage = 1;
+            bg.style.transition = "none";
+            bg.style.backgroundImage = "url('433436.jpg')";
+            bg.style.filter = "grayscale(0.5) blur(2px)";
+            bg.style.transform = "scale(0.9)";
+            vig.style.transition = "none"; vig.style.opacity = "1";
+            joy.style.transition = "none"; joy.style.opacity = "1";
+            clock.style.opacity = "1";
+            status.innerText = "第一關：夜市";
+            btn.classList.remove('clean');
+            btn.style.left = "auto"; btn.style.top = "auto";
+            btn.style.bottom = "12%"; btn.style.right = "10%";
+            btn.style.transform = "none";
+            btn.innerText = "找回意識 (0/3)";
+            setTimeout(() => {
+                bg.style.transition = "filter 2s, transform 2s, opacity 1s";
+                vig.style.transition = "opacity 3s";
+                joy.style.transition = "opacity 1s";
+            }, 100);
         }
 
         setInterval(() => {
-            const clock = document.getElementById('clock');
             clock.innerText = isDementia ? `??:${Math.floor(Math.random()*99)}:${Math.floor(Math.random()*99)}` : new Date().toLocaleTimeString();
         }, 800);
 
@@ -139,6 +159,7 @@
     </script>
 </body>
 </html>
+
 
 
 
