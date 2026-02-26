@@ -2,32 +2,64 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>失智症視角體驗</title>
+    <title>失智症視角：衛星實境版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; background: black; color: white; font-family: sans-serif; overflow: hidden; }
-        #map { width: 100%; height: 100vh; filter: grayscale(1) blur(2px); transition: 0.5s; }
-        #status { position: fixed; bottom: 20px; width: 100%; z-index: 2000; text-align: center; font-size: 1.2rem; text-shadow: 2px 2px 4px black; }
-        .vignette { position: fixed; top: 0; pointer-events: none; width: 100%; height: 100%; 
-                    background: radial-gradient(circle, transparent 20%, black 90%); z-index: 1000; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+        /* 衛星圖配上模糊濾鏡，模擬辨識不出建築物的感覺 */
+        #map { width: 100%; height: 100vh; filter: grayscale(0.3) blur(1.5px); transition: 0.8s; }
+        #status { position: fixed; bottom: 100px; width: 100%; text-align: center; z-index: 2000; text-shadow: 2px 2px 4px black; font-weight: bold; }
+        #recover-btn { 
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 15px 30px; background: #e74c3c; color: white; border: none;
+            border-radius: 50px; font-size: 1.1rem; z-index: 3000; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .clear-vision { filter: none !important; }
     </style>
 </head>
 <body>
-    <div class="vignette"></div>
     <div id="map"></div>
-    <div id="status">正在初始化...請允許定位權限</div>
+    <div id="status">正在讀取衛星訊號...</div>
+    <button id="recover-btn">點擊恢復清醒</button>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        let isDementiaMode = true;
         const map = L.map('map', { zoomControl: false }).setView([25.033, 121.565], 18);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        navigator.geolocation.watchPosition((pos) => {
-            let offsetLat = pos.coords.latitude + (Math.random() - 0.5) * 0.005;
-            let offsetLng = pos.coords.longitude + (Math.random() - 0.5) * 0.005;
-            map.panTo([offsetLat, offsetLng]);
-            document.getElementById('status').innerText = "這裡...是哪裡？我明明記得路...";
-            document.getElementById('map').style.filter = `grayscale(1) blur(${Math.random() * 6}px)`;
-        }, (err) => { document.getElementById('status').innerText = "請在手機開啟 GPS 並允許定位"; }, { enableHighAccuracy: true });
+        
+        // 關鍵更換：換成 Esri 衛星影像
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+
+setlnterval(()=> {//
+ navigator.geolocation.watchPosition((pos) => {
+            let lat = pos.coords.latitude;
+            let lng = pos.coords.longitude;
+
+            if (isDementiaMode) {
+                // 輕微偏移，讓衛星畫面看起來對不準現實
+                lat += (Math.random() - 0.5) * 0.0025;
+                lng += (Math.random() - 0.5) * 0.0025;
+                document.getElementById('status').innerText = "這些房子...看起來好陌生...";
+            } else {
+                document.getElementById('status').innerText = "看清楚了，這是我家附近。";
+            }
+            map.panTo([lat, lng]);
+        }, null, { enableHighAccuracy: true });
+
+        document.getElementById('recover-btn').addEventListener('click', function() {
+            isDementiaMode = !isDementiaMode;
+            const mapEl = document.getElementById('map');
+            if (!isDementiaMode) {
+                mapEl.classList.add('clear-vision');
+                this.innerText = "重新進入模擬";
+                this.style.background = "#27ae60";
+            } else {
+                mapEl.classList.remove('clear-vision');
+                this.innerText = "點擊恢復清醒";
+                this.style.background = "#e74c3c";
+            }
+        });
     </script>
 </body>
 </html>
