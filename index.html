@@ -1,120 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="utf-8" />
-    <title>失智症模擬：強制解鎖版</title>
+    <title>失智症模擬器 V2.0</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
         #street-bg {
             position: fixed; width: 100vw; height: 100vh;
-            background-image: url('433436.jpg');
+            background-image: url('433436.jpg?v=2'); /* 強制刷新圖片快取 */
             background-size: cover; background-position: center bottom;
             filter: grayscale(0.5) blur(2px); z-index: 1; transform: scale(0.85);
-            will-change: transform, filter;
+            transition: filter 0.3s, transform 0.1s;
         }
-        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; }
-        #clock { position: fixed; top: 20px; right: 20px; color: rgba(255,255,255,0.7); font-size: 1.2rem; z-index: 20; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; opacity: 1; transition: opacity 0.5s; }
+        #anxiety { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: rgba(255,0,0,0); z-index: 11; pointer-events: none; transition: background 0.3s; }
+        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; opacity: 0.7; }
         #status { position: fixed; top: 15%; width: 100%; text-align: center; z-index: 2000; color: white; text-shadow: 2px 2px 4px black; pointer-events: none; }
-        #joystick-container { position: fixed; bottom: 10%; left: 10%; width: 120px; height: 120px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 4000; touch-action: none; border: 2px solid rgba(255,255,255,0.3); }
+        #joystick-container { position: fixed; bottom: 10%; left: 10%; width: 120px; height: 120px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 4000; border: 2px solid rgba(255,255,255,0.3); }
         #joystick-knob { position: absolute; width: 50px; height: 50px; background: #fff; border-radius: 50%; left: 35px; top: 35px; pointer-events: none; }
-        #recover-btn { position: fixed; bottom: 10%; right: 10%; padding: 15px 25px; background: #e74c3c; color: white; border: none; border-radius: 50px; z-index: 3000; font-weight: bold; }
-        .whisper { position: fixed; color: #fff; z-index: 5000; pointer-events: none; animation: fadeout 2s forwards; white-space: nowrap; font-size: 1.1rem; text-shadow: 1px 1px 3px #000; }
+        #recover-btn { position: fixed; bottom: 10%; right: 10%; padding: 15px 25px; background: #e74c3c; color: white; border: none; border-radius: 50px; z-index: 5000; font-weight: bold; -webkit-appearance: none; }
+        .whisper { position: fixed; color: #fff; z-index: 6000; pointer-events: none; animation: fadeout 2s forwards; white-space: nowrap; font-size: 1.1rem; text-shadow: 1px 1px 3px #000; }
         @keyframes fadeout { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-50px); } }
     </style>
 </head>
-<body id="main-body">
+<body id="main-body" onclick="startEngine(event)">
     <div id="street-bg"></div>
     <div id="vignette"></div>
+    <div id="anxiety"></div>
     <div id="clock">14:23:05</div>
-    <div id="status">請觸摸搖桿啟動感知</div>
+    <div id="status">點擊螢幕解鎖感官...</div>
     <div id="joystick-container"><div id="joystick-knob"></div></div>
-    <button id="recover-btn">恢復清醒 (0/3)</button>
+    <button id="recover-btn" onclick="handleRecover(event)">恢復清醒 (0/3)</button>
 
     <script>
         let isDementiaMode = true;
         let targetScale = 0.85, currentScale = 0.85;
         let targetBlur = 2, currentBlur = 2;
         let recoverClicks = 0;
+        let audioCtx, osc, gainNode;
+
         const bg = document.getElementById('street-bg');
-        const knob = document.getElementById('joystick-knob');
-        const container = document.getElementById('joystick-container');
+        const vignette = document.getElementById('vignette');
+        const anxiety = document.getElementById('anxiety');
+        const status = document.getElementById('status');
         const btn = document.getElementById('recover-btn');
 
-        // 強制時鐘立即啟動
-        setInterval(() => {
-            const now = new Date();
-            if(isDementiaMode) {
-                document.getElementById('clock').innerText = `14:${Math.floor(Math.random()*60).toString().padStart(2,'0')}:${Math.floor(Math.random()*60).toString().padStart(2,'0')}`;
-            } else {
-                document.getElementById('clock').innerText = now.toLocaleTimeString('zh-TW', { hour12: false });
-            }
-        }, 1000);
-
-        // 碎念功能
-        window.addEventListener('touchstart', (e) => {
-            if (!isDementiaMode || e.target === btn || e.target === container) return;
-            const texts = ["路口在哪？", "紅綠燈...", "那是誰？", "東西呢？", "家在哪？", "好吵...", "慢...", "我想回家..."];
+        // 強制啟動引擎 (聲音+時鐘)
+        function startEngine(e) {
+            if (!isDementiaMode) return;
+            
+            // 碎念文字
+            const texts = ["這條街是哪？", "好吵...", "想回家...", "他是誰？", "東西呢？"];
             const div = document.createElement('div');
             div.className = 'whisper';
-            div.style.left = e.touches[0].clientX + 'px';
-            div.style.top = e.touches[0].clientY + 'px';
+            div.style.left = e.clientX + 'px';
+            div.style.top = e.clientY + 'px';
             div.innerText = texts[Math.floor(Math.random()*texts.length)];
             document.body.appendChild(div);
             setTimeout(() => div.remove(), 2000);
-        });
 
-        // 搖桿逻辑：改用直接監聽
+            // 聲音初始化
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                osc = audioCtx.createOscillator();
+                gainNode = audioCtx.createGain();
+                osc.type = 'brown';
+                osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                osc.start();
+                status.innerText = "感官已連結。";
+            }
+        }
+
+        // 時鐘每秒更新
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = isDementiaMode ? 
+                14:${Math.floor(Math.random()*60).toString().padStart(2,'0')}:${Math.floor(Math.random()*60).toString().padStart(2,'0')} : 
+                now.toLocaleTimeString('zh-TW', { hour12: false });
+        }, 1000);
+
+        // 搖桿邏輯
+        const container = document.getElementById('joystick-container');
+        const knob = document.getElementById('joystick-knob');
+        
         container.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             const rect = container.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            
-            let dy = touch.clientY - centerY;
-            dy = Math.max(-45, Math.min(45, dy)); // 限制範圍
-
+            let dy = touch.clientY - (rect.top + rect.height/2);
+            dy = Math.max(-45, Math.min(45, dy));
             knob.style.transform = `translate(0, ${dy}px)`;
-            document.getElementById('status').innerText = "正在試圖前進...";
 
             if (isDementiaMode) {
                 targetScale = 0.85 + (Math.max(0, -dy) * 0.01);
-                targetBlur = 2 + (Math.abs(dy) * 0.1);
+                targetBlur = 2 + (Math.abs(dy) * 0.15);
+                // 變紅與音量
+                let intensity = Math.abs(dy) / 45;
+                anxiety.style.background = `rgba(255, 0, 0, ${intensity * 0.4})`;
+                if (gainNode) gainNode.gain.setTargetAtTime(intensity * 0.2, audioCtx.currentTime, 0.1);
             }
         }, { passive: false });
 
         container.addEventListener('touchend', () => {
             knob.style.transform = `translate(0,0)`;
+            anxiety.style.background = `rgba(255, 0, 0, 0)`;
+            if (gainNode) gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
         });
 
         function update() {
             currentScale += (targetScale - currentScale) * 0.05;
             currentBlur += (targetBlur - currentBlur) * 0.05;
             bg.style.transform = `scale(${currentScale})`;
-            bg.style.filter = `grayscale(0.5) blur(${currentBlur}px)`;
+            bg.style.filter = isDementiaMode ? grayscale(0.5) blur(${currentBlur}px) : "none";
             requestAnimationFrame(update);
         }
         update();
 
-        btn.addEventListener('click', (e) => {
+        // 恢復清醒按鈕
+        function handleRecover(e) {
             e.stopPropagation();
             recoverClicks++;
             btn.innerText = `恢復清醒 (${recoverClicks}/3)`;
             if (recoverClicks >= 3) {
                 isDementiaMode = false;
-                bg.style.transform = "scale(1)";
-                bg.style.filter = "none";
-                document.getElementById('vignette').style.opacity = "0";
-                document.getElementById('status').innerText = "終於看清楚了。";
+                vignette.style.opacity = "0";
+                anxiety.style.background = "transparent";
+                status.innerText = "世界清晰了。";
                 btn.innerText = "重新進入模擬";
                 btn.style.background = "#27ae60";
+                targetScale = 1.0;
+                targetBlur = 0;
                 recoverClicks = 0;
+            } else if (!isDementiaMode) {
+                location.reload(); // 重新進入就刷新頁面最保險
             }
-        });
+        }
     </script>
 </body>
 </html>
-</html>
+
 
 
