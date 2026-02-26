@@ -2,181 +2,131 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>歸途：最後的理智</title>
+    <title>感知模擬：回歸初心</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; -webkit-user-select: none; font-family: sans-serif; }
-        
-        /* 背景與呼吸動畫 */
         #bg {
             position: fixed; width: 100vw; height: 100vh;
             background-image: url('433436.jpg'); background-position: center; background-size: cover;
-            z-index: 1; filter: grayscale(0.8) blur(5px); transform: scale(0.9);
-            transition: filter 0.5s, transform 0.5s;
+            z-index: 1; filter: grayscale(0.5) blur(3px); transform: scale(0.9);
+            transition: filter 3s ease, transform 3s ease; 
         }
-
-        /* 遊戲 UI 元素 */
-        #ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; pointer-events: none; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 15%, rgba(0,0,0,0.98) 100%); z-index: 10; pointer-events: none; }
+        #status { position: fixed; top: 12%; width: 100%; text-align: center; color: rgba(255,255,255,0.7); z-index: 20; letter-spacing: 2px; font-size: 0.9rem; pointer-events: none; }
         
-        /* 理智值血條 */
-        #sanity-bar-container { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 200px; height: 10px; background: rgba(255,255,255,0.2); border: 1px solid #fff; border-radius: 5px; overflow: hidden; }
-        #sanity-bar { width: 100%; height: 100%; background: #e74c3c; transition: width 0.3s linear; }
+        /* 搖桿 */
+        #joy-base { position: fixed; bottom: 12%; left: 10%; width: 90px; height: 90px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 999; border: 1px solid rgba(255,255,255,0.2); }
+        #joy-knob { position: absolute; width: 34px; height: 34px; background: #fff; border-radius: 50%; left: 28px; top: 28px; }
         
-        #status { position: absolute; top: 60px; width: 100%; text-align: center; color: white; font-size: 0.8rem; letter-spacing: 2px; text-shadow: 2px 2px 4px #000; }
-        #clock { position: absolute; top: 15px; right: 20px; color: rgba(255,255,255,0.5); font-size: 0.9rem; }
-
-        /* 操縱桿 */
-        #joy-base { position: fixed; bottom: 12%; left: 10%; width: 80px; height: 80px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 999; border: 1px solid rgba(255,255,255,0.3); pointer-events: auto; }
-        #joy-knob { position: absolute; width: 30px; height: 30px; background: #fff; border-radius: 50%; left: 25px; top: 25px; pointer-events: none; }
-
-        /* 捕捉按鈕 */
+        /* 按鈕：不再像遊戲，更像一個求救信號 */
         #btn { 
             position: fixed; bottom: 12%; right: 10%; 
-            padding: 12px 24px; background: #e74c3c; 
-            color: white; border: none; border-radius: 50px; 
-            z-index: 1000; font-weight: bold; font-size: 1rem;
-            box-shadow: 0 0 20px rgba(231,76,60,0.6);
-            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: auto;
+            padding: 12px 24px; background: none; 
+            color: #fff; border: 1px solid #fff; border-radius: 50px; 
+            z-index: 1000; font-weight: bold; transition: all 0.4s ease;
         }
 
-        /* 文字特效 */
-        .whisper { position: fixed; color: #ff4d4d; z-index: 500; pointer-events: none; animation: fadeUp 1.5s forwards; font-weight: bold; }
-        @keyframes fadeUp { 0% { opacity: 0; transform: scale(0.5); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-100px); } }
-
-        /* 結算畫面 */
-        #game-over { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; }
-        .restart-btn { margin-top: 20px; padding: 10px 30px; background: #fff; color: #000; border: none; border-radius: 5px; font-weight: bold; }
+        .whisper { position: fixed; color: #fff; z-index: 500; pointer-events: none; animation: fadeUp 2.5s forwards; font-size: 1.1rem; text-shadow: 0 0 5px #000; }
+        @keyframes fadeUp { 0% { opacity: 0; } 10% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(-50px); } }
     </style>
 </head>
 <body>
     <div id="bg"></div>
-    <div id="ui-layer">
-        <div id="clock">--:--:--</div>
-        <div id="sanity-bar-container"><div id="sanity-bar"></div></div>
-        <div id="status">STAGE 1: 混亂夜市</div>
-    </div>
-    
+    <div id="vignette"></div>
+    <div id="status">...</div>
     <div id="joy-base"><div id="joy-knob"></div></div>
-    <button id="btn" onclick="catchConsciousness(event)">捕捉意識 (0/3)</button>
-
-    <div id="game-over">
-        <h1 id="over-title">意識瓦解</h1>
-        <p id="over-msg">你沒能走到家門口...</p>
-        <button class="restart-btn" onclick="location.reload()">重新嘗試</button>
-    </div>
+    <button id="btn" onclick="next(event)">找回意識 (0/3)</button>
 
     <script>
-        let isPlaying = true;
         let stage = 1;
         let count = 0;
-        let sanity = 100;
-        
-        const bg = document.getElementById('bg');
-        const btn = document.getElementById('btn');
-        const sanityBar = document.getElementById('sanity-bar');
-        const statusText = document.getElementById('status');
-        const overScreen = document.getElementById('game-over');
+        let active = true;
+        const texts1 = ["這是哪？", "我忘了...", "路好長...", "好吵..."];
+        const texts2 = ["這是我家嗎？", "怎麼打不開...", "門壞了嗎？", "鑰匙呢？", "我想進去..."];
 
-        // --- 1. 理智值扣減機制 ---
-        const gameLoop = setInterval(() => {
-            if (!isPlaying) return;
-            
-            // 每秒自動扣理智，第二關扣更快
-            sanity -= (stage === 1 ? 0.8 : 1.5); 
-            updateUI();
-            
-            if (sanity <= 0) endGame(false);
-        }, 100);
-
-        function updateUI() {
-            sanityBar.style.width = sanity + '%';
-            if (sanity < 30) sanityBar.style.background = '#ff0000';
-            document.getElementById('clock').innerText = `??:${Math.floor(Math.random()*99)}:${Math.floor(Math.random()*99)}`;
-        }
-
-        // --- 2. 捕捉動作 ---
-        function catchConsciousness(e) {
+        function next(e) {
             e.stopPropagation();
-            if (!isPlaying) return;
+            if (!active) { reset(); return; }
 
             count++;
-            sanity += 10; // 抓到按鈕回血
-            if (sanity > 100) sanity = 100;
-
-            // 視覺獎勵：瞬間清晰
-            bg.style.filter = "grayscale(0) blur(0px)";
-            bg.style.transform = "scale(1)";
-            
-            setTimeout(() => {
-                if(isPlaying) {
-                    bg.style.filter = "grayscale(0.8) blur(5px)";
-                    bg.style.transform = "scale(0.9)";
-                }
-            }, 300);
-
             if (count < 3) {
-                btn.innerText = `捕捉中 (${count}/3)`;
-                // 瞬移邏輯
-                btn.style.left = (Math.random() * 70 + 15) + '%';
-                btn.style.top = (Math.random() * 70 + 15) + '%';
+                e.target.innerText = (stage === 1 ? "找回意識 " : "轉動門把 ") + `(${count}/3)`;
+                e.target.style.left = (Math.random() * 60 + 20) + '%';
+                e.target.style.top = (Math.random() * 60 + 20) + '%';
+                // 點擊瞬間的干擾
+                document.getElementById('bg').style.filter = "grayscale(1) blur(10px)";
+                setTimeout(() => { if(active) document.getElementById('bg').style.filter = "grayscale(0.5) blur(3px)"; }, 300);
             } else if (stage === 1) {
-                nextStage();
+                stage = 2; count = 0;
+                document.getElementById('bg').style.backgroundImage = "url('433455.jpg')";
+                document.getElementById('status').innerText = "抵達門口";
+                e.target.innerText = "這是我家嗎？ (0/3)";
             } else {
-                endGame(true);
+                finish();
             }
         }
 
-        function nextStage() {
-            stage = 2;
-            count = 0;
-            statusText.innerText = "STAGE 2: 家門口 (意識流失加劇)";
-            btn.innerText = "這是我家嗎？ (0/3)";
-            btn.style.background = "#2980b9";
-            bg.style.backgroundImage = "url('433455.jpg')";
-        }
-
-        // --- 3. 遊戲結束處理 ---
-        function endGame(success) {
-            isPlaying = false;
-            clearInterval(gameLoop);
+        function finish() {
+            active = false;
+            const b = document.getElementById('btn');
+            b.style.opacity = "0";
+            document.getElementById('status').innerText = "門開了...";
             
-            if (success) {
-                overScreen.style.display = 'flex';
-                overScreen.style.background = 'rgba(255,255,255,0.9)';
-                document.getElementById('over-title').innerText = "抵達終點";
-                document.getElementById('over-title').style.color = "#000";
-                document.getElementById('over-msg').innerText = "雖然清醒很短暫，但你找回了名字。";
-                document.getElementById('over-msg').style.color = "#333";
-            } else {
-                overScreen.style.display = 'flex';
-            }
+            // 視覺回歸真實
+            const bg = document.getElementById('bg');
+            bg.style.filter = "none";
+            bg.style.transform = "scale(1)";
+            document.getElementById('vignette').style.opacity = "0";
+            document.getElementById('joy-base').style.opacity = "0";
+
+            // 最後的流逝感
+            setTimeout(() => {
+                document.getElementById('status').innerText = "這是我家。";
+                setTimeout(() => {
+                    document.getElementById('status').innerText = "趁還記得，再多看一眼。";
+                    // 緩慢消失
+                    bg.style.transition = "filter 15s ease-in, opacity 10s ease-in";
+                    bg.style.filter = "grayscale(1) blur(8px)";
+                    bg.style.opacity = "0.3";
+                    
+                    setTimeout(() => {
+                        b.style.opacity = "1";
+                        b.style.left = "50%"; b.style.top = "80%"; b.style.transform = "translateX(-50%)";
+                        b.innerText = "重啟模擬";
+                        document.getElementById('status').innerText = "記憶已流逝。";
+                    }, 5000);
+                }, 4000);
+            }, 2000);
         }
 
-        // 碎念文字 (扣血處罰)
+        function reset() { location.reload(); }
+
         window.addEventListener('touchstart', (e) => {
-            if (!isPlaying || e.target.id === 'btn' || e.target.id === 'joy-base') return;
-            sanity -= 3; // 亂點螢幕會扣理智
+            if (!active || e.target.id === 'btn') return;
             const div = document.createElement('div');
             div.className = 'whisper';
             div.style.left = e.touches[0].clientX + 'px';
             div.style.top = e.touches[0].clientY + 'px';
-            div.innerText = stage === 1 ? "迷路了..." : "打不開！";
+            const list = (stage === 1) ? texts1 : texts2;
+            div.innerText = list[Math.floor(Math.random()*list.length)];
             document.body.appendChild(div);
-            setTimeout(() => div.remove(), 1500);
+            setTimeout(() => div.remove(), 2500);
         });
 
-        // 搖桿縮放邏輯
+        // 搖桿邏輯
         const base = document.getElementById('joy-base');
         const knob = document.getElementById('joy-knob');
         base.addEventListener('touchmove', (e) => {
-            if (!isPlaying) return;
-            const dy = e.touches[0].clientY - (base.getBoundingClientRect().top + 40);
-            knob.style.transform = `translateY(${Math.max(-30, Math.min(30, dy))}px)`;
+            if (!active) return;
+            const dy = e.touches[0].clientY - (base.getBoundingClientRect().top + 45);
+            knob.style.transform = `translateY(${Math.max(-40, Math.min(40, dy))}px)`;
+            document.getElementById('bg').style.filter = `grayscale(0.5) blur(${3 + Math.abs(dy)*0.15}px)`;
         });
     </script>
 </body>
 </html>
+
 
 
 
