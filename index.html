@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>感知模擬：混亂升級版</title>
+    <title>感知模擬：深度結局版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; -webkit-user-select: none; font-family: sans-serif; }
@@ -10,32 +10,32 @@
             position: fixed; width: 100vw; height: 100vh;
             background-image: url('433436.jpg'); background-position: center; background-size: cover;
             z-index: 1; filter: grayscale(0.5) blur(2px); transform: scale(0.9);
-            transition: background-image 1s, filter 0.3s, transform 0.2s;
+            transition: filter 2s, transform 2s, opacity 1s; /* 加長恢復時間 */
         }
-        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; }
-        #flash { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: #fff; opacity: 0; z-index: 2000; pointer-events: none; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; transition: opacity 2s; }
+        #white-out { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: #fff; opacity: 0; z-index: 3000; pointer-events: none; transition: opacity 1s; }
         
-        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; }
-        #status { position: fixed; top: 15%; width: 100%; text-align: center; color: white; z-index: 20; text-shadow: 2px 2px 4px #000; pointer-events: none; font-weight: bold; }
+        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; transition: color 1s; }
+        #status { position: fixed; top: 15%; width: 100%; text-align: center; color: white; z-index: 20; text-shadow: 2px 2px 4px #000; pointer-events: none; }
         
-        #joy-base { position: fixed; bottom: 12%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 999; border: 2px solid #fff; }
+        #joy-base { position: fixed; bottom: 12%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 999; border: 2px solid #fff; transition: opacity 1s; }
         #joy-knob { position: absolute; width: 40px; height: 40px; background: #fff; border-radius: 50%; left: 30px; top: 30px; }
         
         #btn { 
             position: fixed; bottom: 12%; right: 10%; 
             padding: 12px 20px; background: #e74c3c; 
             color: white; border: 2px solid #fff; border-radius: 50px; 
-            z-index: 1000; font-weight: bold; transition: all 0.2s;
+            z-index: 1000; font-weight: bold; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .whisper { position: fixed; color: #fff; z-index: 500; pointer-events: none; animation: fadeUp 2s forwards; font-weight: bold; text-shadow: 1px 1px 3px #000; }
-        @keyframes fadeUp { 0% { opacity: 0; } 20% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0; transform: translateY(-60px) scale(0.8); } }
+        @keyframes fadeUp { 0% { opacity: 0; transform: scale(0.5); } 20% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: translateY(-80px) scale(0.8); } }
     </style>
 </head>
 <body>
     <div id="bg"></div>
     <div id="vignette"></div>
-    <div id="flash"></div>
+    <div id="white-out"></div>
     <div id="clock">--:--:--</div>
     <div id="status">第一關：夜市</div>
     <div id="joy-base"><div id="joy-knob"></div></div>
@@ -46,80 +46,97 @@
         let count = 0;
         let stage = 1; 
         const bg = document.getElementById('bg');
-        const flash = document.getElementById('flash');
+        const whiteOut = document.getElementById('white-out');
+        const btn = document.getElementById('btn');
 
-        // 1. 碎念文字：加入更強烈的視覺閃爍
-        window.addEventListener('touchstart', (e) => {
-            if (!isDementia || e.target.id === 'btn') return;
+        // 碎念文字：增加最後一刻的瘋狂感
+        function createWhisper(x, y, text) {
             const div = document.createElement('div');
             div.className = 'whisper';
-            div.style.left = e.touches[0].clientX + 'px';
-            div.style.top = e.touches[0].clientY + 'px';
-            div.innerText = stage === 1 ? "你是誰？" : "這不是我家！";
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            div.innerText = text || (stage === 1 ? "這是哪？" : "我想進去...");
             document.body.appendChild(div);
             setTimeout(() => div.remove(), 2000);
-            
-            if (Math.random() > 0.8) { // 20% 機率畫面閃爍
-                bg.style.transform = `scale(1.1) rotate(${Math.random()*5-2.5}deg)`;
-                setTimeout(() => bg.style.transform = `scale(0.9)`, 100);
-            }
+        }
+
+        window.addEventListener('touchstart', (e) => {
+            if (!isDementia || e.target.id === 'btn') return;
+            createWhisper(e.touches[0].clientX, e.touches[0].clientY);
         });
 
-        // 2. 搖桿失靈邏輯
+        // 恢復邏輯
+        function recover(e) {
+            e.stopPropagation();
+            count++;
+
+            if (count < 3) {
+                btn.innerText = `捕捉中 (${count}/3)`;
+                // 瞬移更隨機、更遠
+                btn.style.left = (Math.random() * 80 + 5) + '%';
+                btn.style.top = (Math.random() * 80 + 5) + '%';
+            } else if (stage === 1) {
+                stage = 2; count = 0;
+                document.getElementById('status').innerText = "第二關：家門口";
+                btn.innerText = "你是誰？ (0/3)";
+                bg.style.backgroundImage = "url('433455.jpg')";
+                // 切換時的視覺震撼
+                whiteOut.style.opacity = "0.5";
+                setTimeout(() => whiteOut.style.opacity = "0", 300);
+            } else {
+                triggerEnding();
+            }
+        }
+
+        function triggerEnding() {
+            isDementia = false;
+            btn.style.display = 'none'; // 先隱藏按鈕，不讓它干擾結局
+            document.getElementById('status').innerText = "意識湧入中...";
+
+            // 1. 最後的碎念噴發
+            for(let i=0; i<15; i++) {
+                setTimeout(() => {
+                    createWhisper(Math.random()*window.innerWidth, Math.random()*window.innerHeight, "想起來了！");
+                }, i * 100);
+            }
+
+            // 2. 視覺慢慢淡入真實
+            whiteOut.style.opacity = "1"; // 先全白
+            setTimeout(() => {
+                bg.style.filter = "none";
+                bg.style.transform = "scale(1)";
+                document.getElementById('vignette').style.opacity = "0";
+                document.getElementById('joy-base').style.opacity = "0";
+                document.getElementById('clock').style.color = "#000";
+                whiteOut.style.opacity = "0"; // 慢慢揭開真實
+                
+                setTimeout(() => {
+                    document.getElementById('status').innerText = "我到家了。";
+                    btn.style.display = 'block';
+                    btn.style.cssText = "left:50%; top:60%; transform:translate(-50%,-50%); background:#27ae60; border:none;";
+                    btn.innerText = "重新開始";
+                }, 1500);
+            }, 1000);
+        }
+
+        setInterval(() => {
+            const clock = document.getElementById('clock');
+            clock.innerText = isDementia ? 
+                `??:${Math.floor(Math.random()*99)}:${Math.floor(Math.random()*99)}` : 
+                new Date().toLocaleTimeString();
+        }, 800);
+
+        // 搖桿縮放
         const base = document.getElementById('joy-base');
         const knob = document.getElementById('joy-knob');
         base.addEventListener('touchmove', (e) => {
             if (!isDementia) return;
             const dy = e.touches[0].clientY - (base.getBoundingClientRect().top + 50);
-            const glitch = (stage === 2 && Math.random() > 0.7) ? -dy : dy; // 第二關有機會反向
-            knob.style.transform = `translateY(${Math.max(-45, Math.min(45, glitch))}px)`;
-            bg.style.filter = `grayscale(0.5) blur(${2 + Math.abs(glitch)*0.2}px)`;
+            knob.style.transform = `translateY(${Math.max(-45, Math.min(45, dy))}px)`;
+            bg.style.filter = `grayscale(0.5) blur(${2 + Math.abs(dy)*0.2}px)`;
         });
-
-        // 3. 恢復邏輯：加入瞬移失敗與視覺爆擊
-        function recover(e) {
-            e.stopPropagation();
-            count++;
-            
-            // 視覺震盪
-            flash.style.opacity = "0.3";
-            setTimeout(() => flash.style.opacity = "0", 100);
-
-            if (count < 3) {
-                e.target.innerText = `...捕捉中 (${count}/3)`;
-                // 瞬移位置變更劇烈
-                e.target.style.left = (Math.random() * 70 + 5) + '%';
-                e.target.style.top = (Math.random() * 70 + 5) + '%';
-                e.target.style.transform = `rotate(${Math.random()*40-20}deg)`; // 按鈕歪斜
-            } else if (stage === 1) {
-                stage = 2; count = 0;
-                document.getElementById('status').innerText = "第二關：門口 (干擾增加)";
-                e.target.innerText = "你是誰？ (0/3)";
-                e.target.style.background = "#000"; // 變成黑色更難找
-                bg.style.backgroundImage = "url('433455.jpg')";
-                bg.style.filter = "invert(0.5) blur(10px)"; // 切換時色彩反轉
-                setTimeout(() => bg.style.filter = "grayscale(0.5) blur(2px)", 500);
-            } else {
-                isDementia = false;
-                document.getElementById('status').innerText = "終於清醒了...";
-                bg.style.filter = "none"; bg.style.transform = "scale(1)";
-                document.getElementById('vignette').style.opacity = "0";
-                e.target.style.cssText = "left:50%; top:50%; transform:translate(-50%,-50%); background:#27ae60;";
-                e.target.innerText = "重啟模擬";
-                if (count > 3) location.reload();
-            }
-        }
-
-        // 時鐘干擾
-        setInterval(() => {
-            const clock = document.getElementById('clock');
-            clock.innerText = isDementia ? 
-                `??:${Math.floor(Math.random()*99)}:${Math.floor(Math.random()*99)}` : // 更混亂的時間
-                new Date().toLocaleTimeString();
-        }, 800);
     </script>
 </body>
-</html>
 </html>
 
 
