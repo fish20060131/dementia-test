@@ -2,10 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>感知模擬：最終穩定版</title>
+    <title>感知模擬：文字回歸版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
         #bg {
             position: fixed; width: 100vw; height: 100vh;
             background: url('433436.jpg') no-repeat center;
@@ -14,12 +14,28 @@
         }
         #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; }
         #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; }
+        
+        /* 搖桿樣式 */
         #joy-base { position: fixed; bottom: 12%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 999; border: 2px solid #fff; }
         #joy-knob { position: absolute; width: 40px; height: 40px; background: #fff; border-radius: 50%; left: 30px; top: 30px; }
+        
+        /* 按鈕樣式 */
         #btn { position: fixed; bottom: 12%; right: 10%; padding: 15px 25px; background: #e74c3c; color: white; border: none; border-radius: 50px; z-index: 1000; font-weight: bold; }
+
+        /* 碎念文字效果 */
+        .whisper { 
+            position: fixed; color: #fff; z-index: 500; 
+            pointer-events: none; animation: fadeUp 2s ease-out forwards; 
+            font-weight: bold; text-shadow: 1px 1px 3px #000; font-size: 1.1rem;
+        }
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(0); }
+            20% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-40px); }
+        }
     </style>
 </head>
-<body>
+<body onclick="spawnWhisper(event)">
     <div id="bg"></div>
     <div id="vignette"></div>
     <div id="clock">14:23:05</div>
@@ -29,7 +45,25 @@
     <script>
         let isDementia = true;
         let count = 0;
-        let animId; // 用來停止動畫
+
+        // 碎念對話文字庫
+        const texts = ["這路口走過嗎？", "我想回家...", "那是誰？", "東西呢？", "慢一點...", "好吵...", "這條街..."];
+
+        function spawnWhisper(e) {
+            if (!isDementia) return;
+            // 排除按鈕與搖桿點擊
+            if (e.target.id === 'btn' || e.target.id === 'joy-base') return;
+
+            const div = document.createElement('div');
+            div.className = 'whisper';
+            div.style.left = e.clientX + 'px';
+            div.style.top = e.clientY + 'px';
+            div.innerText = texts[Math.floor(Math.random() * texts.length)];
+            document.body.appendChild(div);
+
+            // 兩秒後自動移除
+            setTimeout(() => div.remove(), 2000);
+        }
 
         // 時鐘：始終運作
         setInterval(() => {
@@ -41,58 +75,8 @@
             }
         }, 1000);
 
-        const bg = document.getElementById('bg');
-        const knob = document.getElementById('joy-knob');
-        const base = document.getElementById('joy-base');
+        const bg = document.
 
-        // 搖桿：簡單直接
-        base.addEventListener('touchmove', (e) => {
-            if (!isDementia) return;
-            const touch = e.touches[0];
-            const rect = base.getBoundingClientRect();
-            let dy = touch.clientY - (rect.top + 50);
-            dy = Math.max(-40, Math.min(40, dy));
-            knob.style.transform = `translateY(${dy}px)`;
-            
-            // 即時反應，不靠 loop 減少卡頓
-            let intensity = Math.abs(dy) / 40;
-            bg.style.filter = `grayscale(0.5) blur(${2 + intensity * 5}px)`;
-            bg.style.transform = `scale(${0.9 + (Math.max(0, -dy) * 0.01)})`;
-        });
-
-        base.addEventListener('touchend', () => {
-            knob.style.transform = `translateY(0)`;
-        });
-
-        // 核心：恢復功能
-        function recover(e) {
-            e.stopPropagation();
-            count++;
-            const b = e.target;
-            b.innerText = `恢復清醒 (${count}/3)`;
-
-            if (count >= 3) {
-                isDementia = false;
-                // 1. 物理性強制重置 CSS
-                bg.style.transition = "all 0.8s ease-out";
-                bg.style.filter = "none";
-                bg.style.transform = "scale(1)";
-                
-                // 2. 移除遮罩與搖桿
-                document.getElementById('vignette').style.display = 'none';
-                base.style.display = 'none';
-                
-                // 3. 更新按鈕狀態
-                b.style.background = "#27ae60";
-                b.innerText = "重新開始";
-                
-                // 4. 如果已經清醒再按一次就重整
-                if (count > 3) location.reload();
-            }
-        }
-    </script>
-</body>
-</html>
 
 
 
