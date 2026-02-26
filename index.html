@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>感知模擬：深度結局版</title>
+    <title>感知模擬：純淨清醒版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; -webkit-user-select: none; font-family: sans-serif; }
@@ -10,26 +10,31 @@
             position: fixed; width: 100vw; height: 100vh;
             background-image: url('433436.jpg'); background-position: center; background-size: cover;
             z-index: 1; filter: grayscale(0.5) blur(2px); transform: scale(0.9);
-            transition: filter 2s, transform 2s, opacity 1s; /* 加長恢復時間 */
+            transition: filter 3s ease-in-out, transform 3s ease-in-out, opacity 1s; 
         }
-        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; transition: opacity 2s; }
-        #white-out { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: #fff; opacity: 0; z-index: 3000; pointer-events: none; transition: opacity 1s; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; transition: opacity 3s; }
+        #white-out { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: #fff; opacity: 0; z-index: 3000; pointer-events: none; transition: opacity 1.5s; }
         
-        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; transition: color 1s; }
-        #status { position: fixed; top: 15%; width: 100%; text-align: center; color: white; z-index: 20; text-shadow: 2px 2px 4px #000; pointer-events: none; }
+        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; transition: color 2s, opacity 2s; }
+        #status { position: fixed; top: 15%; width: 100%; text-align: center; color: white; z-index: 20; text-shadow: 2px 2px 4px #000; pointer-events: none; transition: opacity 2s, color 2s; }
         
         #joy-base { position: fixed; bottom: 12%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 999; border: 2px solid #fff; transition: opacity 1s; }
         #joy-knob { position: absolute; width: 40px; height: 40px; background: #fff; border-radius: 50%; left: 30px; top: 30px; }
         
+        /* 修改後的按鈕：更低調、不擋視線 */
         #btn { 
-            position: fixed; bottom: 12%; right: 10%; 
-            padding: 12px 20px; background: #e74c3c; 
-            color: white; border: 2px solid #fff; border-radius: 50px; 
-            z-index: 1000; font-weight: bold; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: fixed; bottom: 8%; left: 50%; transform: translateX(-50%);
+            padding: 10px 30px; background: rgba(255,255,255,0.1); 
+            color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; 
+            z-index: 5000; font-size: 0.9rem; letter-spacing: 2px;
+            transition: opacity 2s, background 0.5s; opacity: 1;
+            display: block;
         }
+        #btn.hidden { opacity: 0; pointer-events: none; }
+        #btn:active { background: rgba(255,255,255,0.3); }
 
         .whisper { position: fixed; color: #fff; z-index: 500; pointer-events: none; animation: fadeUp 2s forwards; font-weight: bold; text-shadow: 1px 1px 3px #000; }
-        @keyframes fadeUp { 0% { opacity: 0; transform: scale(0.5); } 20% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: translateY(-80px) scale(0.8); } }
+        @keyframes fadeUp { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-50px); } }
     </style>
 </head>
 <body>
@@ -49,12 +54,10 @@
         const whiteOut = document.getElementById('white-out');
         const btn = document.getElementById('btn');
 
-        // 碎念文字：增加最後一刻的瘋狂感
         function createWhisper(x, y, text) {
             const div = document.createElement('div');
             div.className = 'whisper';
-            div.style.left = x + 'px';
-            div.style.top = y + 'px';
+            div.style.left = x + 'px'; div.style.top = y + 'px';
             div.innerText = text || (stage === 1 ? "這是哪？" : "我想進去...");
             document.body.appendChild(div);
             setTimeout(() => div.remove(), 2000);
@@ -65,24 +68,20 @@
             createWhisper(e.touches[0].clientX, e.touches[0].clientY);
         });
 
-        // 恢復邏輯
         function recover(e) {
             e.stopPropagation();
             count++;
-
             if (count < 3) {
                 btn.innerText = `捕捉中 (${count}/3)`;
-                // 瞬移更隨機、更遠
-                btn.style.left = (Math.random() * 80 + 5) + '%';
-                btn.style.top = (Math.random() * 80 + 5) + '%';
+                btn.style.left = (Math.random() * 80 + 10) + '%';
+                btn.style.top = (Math.random() * 80 + 10) + '%';
             } else if (stage === 1) {
                 stage = 2; count = 0;
                 document.getElementById('status').innerText = "第二關：家門口";
                 btn.innerText = "你是誰？ (0/3)";
                 bg.style.backgroundImage = "url('433455.jpg')";
-                // 切換時的視覺震撼
-                whiteOut.style.opacity = "0.5";
-                setTimeout(() => whiteOut.style.opacity = "0", 300);
+                whiteOut.style.opacity = "0.6";
+                setTimeout(() => whiteOut.style.opacity = "0", 400);
             } else {
                 triggerEnding();
             }
@@ -90,43 +89,45 @@
 
         function triggerEnding() {
             isDementia = false;
-            btn.style.display = 'none'; // 先隱藏按鈕，不讓它干擾結局
-            document.getElementById('status').innerText = "意識湧入中...";
+            btn.classList.add('hidden'); // 瞬間隱藏按鈕，還給視線清淨
+            document.getElementById('status').innerText = "記憶正在歸位...";
 
-            // 1. 最後的碎念噴發
-            for(let i=0; i<15; i++) {
-                setTimeout(() => {
-                    createWhisper(Math.random()*window.innerWidth, Math.random()*window.innerHeight, "想起來了！");
-                }, i * 100);
+            // 噴發碎念後歸於寂靜
+            for(let i=0; i<12; i++) {
+                setTimeout(() => createWhisper(Math.random()*window.innerWidth, Math.random()*window.innerHeight, "想起來了！"), i * 150);
             }
 
-            // 2. 視覺慢慢淡入真實
-            whiteOut.style.opacity = "1"; // 先全白
+            // 視覺極限淡入
+            whiteOut.style.opacity = "1";
             setTimeout(() => {
                 bg.style.filter = "none";
                 bg.style.transform = "scale(1)";
                 document.getElementById('vignette').style.opacity = "0";
                 document.getElementById('joy-base').style.opacity = "0";
-                document.getElementById('clock').style.color = "#000";
-                whiteOut.style.opacity = "0"; // 慢慢揭開真實
                 
+                // UI 變淡，融入背景
+                document.getElementById('clock').style.opacity = "0.3";
+                document.getElementById('clock').style.color = "#fff";
+                document.getElementById('status').style.color = "rgba(255,255,255,0.8)";
+                document.getElementById('status').innerText = "這是我家。";
+                
+                whiteOut.style.opacity = "0";
+                
+                // 延遲出現「重新開始」按鈕，且按鈕變得極度低調
                 setTimeout(() => {
-                    document.getElementById('status').innerText = "我到家了。";
-                    btn.style.display = 'block';
-                    btn.style.cssText = "left:50%; top:60%; transform:translate(-50%,-50%); background:#27ae60; border:none;";
-                    btn.innerText = "重新開始";
-                }, 1500);
-            }, 1000);
+                    btn.classList.remove('hidden');
+                    btn.style.left = "50%"; btn.style.top = "auto"; btn.style.bottom = "8%";
+                    btn.style.transform = "translateX(-50%)";
+                    btn.innerText = "重啟模擬";
+                }, 4000); // 4秒後才出現，讓你靜靜看照片
+            }, 1500);
         }
 
         setInterval(() => {
             const clock = document.getElementById('clock');
-            clock.innerText = isDementia ? 
-                `??:${Math.floor(Math.random()*99)}:${Math.floor(Math.random()*99)}` : 
-                new Date().toLocaleTimeString();
+            clock.innerText = isDementia ? `??:${Math.floor(Math.random()*99)}:${Math.floor(Math.random()*99)}` : new Date().toLocaleTimeString();
         }, 800);
 
-        // 搖桿縮放
         const base = document.getElementById('joy-base');
         const knob = document.getElementById('joy-knob');
         base.addEventListener('touchmove', (e) => {
@@ -138,5 +139,6 @@
     </script>
 </body>
 </html>
+
 
 
