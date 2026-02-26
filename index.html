@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>歸途：對話的選擇</title>
+    <title>歸途：語言的重量</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
@@ -10,146 +10,176 @@
             position: fixed; width: 100vw; height: 100vh;
             background-image: url('433436.jpg'); background-position: center; background-size: cover;
             z-index: 1; filter: grayscale(0.8) blur(8px); transform: scale(1.1);
-            transition: all 0.8s ease;
+            transition: all 1s cubic-bezier(0.2, 0, 0.2, 1);
         }
-        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 10%, rgba(0,0,0,0.9) 100%); z-index: 10; pointer-events: none; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 5%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; }
         
-        /* 選項容器 */
+        /* 狀態文字優化 */
+        #status-group { position: fixed; top: 10%; width: 100%; text-align: center; z-index: 20; }
+        #progress-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 10px auto; overflow: hidden; }
+        #progress-fill { width: 30%; height: 100%; background: #fff; box-shadow: 0 0 10px #fff; transition: width 0.6s ease; }
+        #status-text { color: #fff; font-size: 0.75rem; letter-spacing: 2px; opacity: 0.6; }
+
+        /* 對話按鈕優化 */
         #choice-container {
-            position: fixed; bottom: 15%; width: 100%; 
-            display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 1000;
+            position: fixed; bottom: 12%; width: 100%; 
+            display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 1000;
         }
         .choice-btn {
-            width: 80%; max-width: 300px; padding: 12px;
-            background: rgba(0,0,0,0.7); color: #fff;
-            border: 1px solid rgba(255,255,255,0.4); border-radius: 10px;
-            font-size: 0.95rem; text-align: center; transition: 0.3s;
+            width: 85%; max-width: 320px; padding: 14px 20px;
+            background: rgba(255,255,255,0.05); color: #fff;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;
+            font-size: 0.9rem; text-align: left; transition: all 0.3s;
+            backdrop-filter: blur(5px);
         }
-        .choice-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.2); }
+        .choice-btn:active { background: #fff; color: #000; }
 
-        /* 進度條（理智值） */
-        #progress-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); width: 70%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 20; overflow: hidden; }
-        #progress-fill { width: 30%; height: 100%; background: #3498db; transition: width 0.5s ease; }
-
-        #status { position: fixed; top: 13%; width: 100%; text-align: center; color: #fff; font-size: 0.8rem; z-index: 20; text-shadow: 0 0 5px #000; }
+        /* 負面碎念：顏色更鮮豔以示警告 */
+        .whisper { position: fixed; color: #ff3e3e; z-index: 500; pointer-events: none; animation: fadeUp 1.8s forwards; font-weight: bold; font-size: 1.2rem; text-shadow: 0 0 10px #000; }
+        @keyframes fadeUp { 0% { opacity: 0; transform: scale(0.8); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-80px); } }
         
-        .whisper { position: fixed; color: #ff4d4d; z-index: 500; pointer-events: none; animation: fadeUp 1.5s forwards; font-weight: bold; }
-        @keyframes fadeUp { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-50px); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
     </style>
 </head>
 <body>
     <div id="bg"></div>
     <div id="vignette"></div>
-    <div id="progress-bar"><div id="progress-fill"></div></div>
-    <div id="status">捕捉意識中...</div>
+    <div id="status-group">
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="status-text">捕捉微光中...</div>
+    </div>
     
     <div id="choice-container"></div>
 
     <script>
         let stage = 1;
-        let score = 30; // 初始理智值
+        let score = 30;
         const bg = document.getElementById('bg');
         const fill = document.getElementById('progress-fill');
         const container = document.getElementById('choice-container');
 
-        // 題目庫：正分（幫助）與負分（無助）
-        const questions = [
-            { s: 1, q: [ {t: "「放輕鬆，我們慢慢走」", p: 20}, {t: "「你怎麼又忘了路？」", p: -15} ] },
-            { s: 1, q: [ {t: "「我們去吃你最愛的點心」", p: 20}, {t: "「快一點，大家在等你」", p: -15} ] },
-            { s: 2, q: [ {t: "「沒關係，鑰匙慢慢找」", p: 20}, {t: "「這就是你家啊！快開門」", p: -25} ] },
-            { s: 2, q: [ {t: "「我陪在你身邊，別擔心」", p: 20}, {t: "「你到底在搞什麼？」", p: -25} ] }
+        // 擴充後的對話庫
+        const db = [
+            // Stage 1: 夜市
+            { s: 1, options: [
+                {t: "「不急，我們牽著手慢慢看」", p: 15},
+                {t: "「你再這樣亂走我就不管你了」", p: -20},
+                {t: "「你先冷靜，這沒什麼好怕的」", p: -5}
+            ]},
+            { s: 1, options: [
+                {t: "「肚子餓了嗎？要不要吃蔥油餅？」", p: 15},
+                {t: "「到底要跟你說幾次路在那邊？」", p: -20},
+                {t: "「哎呀，你記錯了啦，不是這條」", p: -10}
+            ]},
+            { s: 1, options: [
+                {t: "「你看，那邊的燈籠好漂亮」", p: 15},
+                {t: "「大家都在看你，別鬧了」", p: -20},
+                {t: "「你是認真想不起來嗎？」", p: -15}
+            ]},
+            // Stage 2: 家門口
+            { s: 2, options: [
+                {t: "「沒事，我也常忘記帶鑰匙」", p: 15},
+                {t: "「你連自己家門都打不開？」", p: -25},
+                {t: "「用力轉一下就開了，快點」", p: -10}
+            ]},
+            { s: 2, options: [
+                {t: "「我們在門口坐一下，休息一下」", p: 15},
+                {t: "「這是你住了三十年的家耶！」", p: -20},
+                {t: "「你就不能專心一點開門嗎？」", p: -15}
+            ]},
+            { s: 2, options: [
+                {t: "「我幫你一起轉，一、二、三」", p: 15},
+                {t: "「笨手笨腳的，走開我來」", p: -30},
+                {t: "「你是累了嗎？怎麼變這樣」", p: -10}
+            ]}
         ];
 
-        function loadQuestion() {
+        function loadChoices() {
             container.innerHTML = "";
-            let currentQ = questions.filter(item => item.s === stage);
-            let qData = currentQ[Math.floor(Math.random() * currentQ.length)];
+            let filtered = db.filter(item => item.s === stage);
+            // 隨機選取一組對話
+            let group = filtered[Math.floor(Math.random() * filtered.length)];
             
-            // 隨機排序選項
-            qData.q.sort(() => Math.random() - 0.5).forEach(choice => {
+            group.options.sort(() => Math.random() - 0.5).forEach(o => {
                 const btn = document.createElement('div');
                 btn.className = 'choice-btn';
-                btn.innerText = choice.t;
-                btn.onclick = () => handleChoice(choice.p);
+                btn.innerText = o.t;
+                btn.onclick = () => handleImpact(o.p);
                 container.appendChild(btn);
             });
         }
 
-        function handleChoice(p) {
+        function handleImpact(p) {
             score += p;
-            if (score < 0) score = 0;
-            if (score > 100) score = 100;
-            
+            score = Math.max(0, Math.min(100, score));
             fill.style.width = score + '%';
 
             if (p > 0) {
-                // 正確回饋：畫面變清晰彩色
+                // 正向：瞬間清明
                 bg.style.filter = "grayscale(0) blur(0px)";
                 bg.style.transform = "scale(1)";
-                setTimeout(() => updateEnvironment(), 1000);
+                setTimeout(() => updateVisuals(), 800);
             } else {
-                // 錯誤回饋：畫面劇烈震動
-                bg.style.filter = "grayscale(1) blur(15px)";
-                document.body.style.animation = "shake 0.3s infinite";
-                for(let i=0; i<5; i++) createWhisper();
+                // 負向：壓力爆發
+                bg.style.filter = "grayscale(1) blur(20px) contrast(1.5)";
+                document.body.style.animation = "shake 0.4s 2";
+                for(let i=0; i<6; i++) spawnWhisper();
                 setTimeout(() => {
                     document.body.style.animation = "";
-                    updateEnvironment();
+                    updateVisuals();
                 }, 800);
             }
 
-            // 判斷關卡切換
-            if (score >= 60 && stage === 1) {
+            // 進階判定
+            if (score >= 65 && stage === 1) {
                 stage = 2;
                 bg.style.backgroundImage = "url('433455.jpg')";
-                document.getElementById('status').innerText = "抵達門口了...";
+                document.getElementById('status-text').innerText = "抵達門口了...";
             }
             
             if (score >= 100) {
-                finish();
+                showEnding();
             } else {
-                loadQuestion();
+                loadChoices();
             }
         }
 
-        function updateEnvironment() {
-            let blurVal = (100 - score) / 10;
-            let grayVal = (100 - score) / 100;
-            bg.style.filter = `grayscale(${grayVal}) blur(${blurVal}px)`;
+        function updateVisuals() {
+            let b = (100 - score) / 8;
+            let g = (100 - score) / 100;
+            bg.style.filter = `grayscale(${g}) blur(${b}px)`;
             bg.style.transform = `scale(${0.9 + score/1000})`;
         }
 
-        function createWhisper() {
-            const div = document.createElement('div');
-            div.className = 'whisper';
-            div.style.left = Math.random() * 80 + '%';
-            div.style.top = Math.random() * 80 + '%';
-            div.innerText = stage === 1 ? "好混亂..." : "打不開！";
-            document.body.appendChild(div);
-            setTimeout(() => div.remove(), 1500);
+        function spawnWhisper() {
+            const d = document.createElement('div');
+            d.className = 'whisper';
+            d.style.left = Math.random() * 80 + '%';
+            d.style.top = Math.random() * 80 + '%';
+            const failTexts = ["別催我...", "好可怕...", "腦袋好亂", "你是誰？", "對不起...", "我不是故意的"];
+            d.innerText = failTexts[Math.floor(Math.random()*failTexts.length)];
+            document.body.appendChild(d);
+            setTimeout(() => d.remove(), 1800);
         }
 
-        function finish() {
+        function showEnding() {
             container.innerHTML = "";
             bg.style.filter = "none";
             bg.style.transform = "scale(1)";
-            document.getElementById('status').innerText = "意識終於清醒了。";
+            document.getElementById('status-text').innerText = "這是我家，我想起來了。";
             const btn = document.createElement('div');
             btn.className = 'choice-btn';
-            btn.style.borderColor = "#27ae60";
-            btn.innerText = "重新找回記憶";
+            btn.style.textAlign = "center";
+            btn.style.borderColor = "#fff";
+            btn.innerText = "重新感受清醒";
             btn.onclick = () => location.reload();
             container.appendChild(btn);
         }
 
-        // CSS 震動效果
-        const style = document.createElement('style');
-        style.innerHTML = `@keyframes shake { 0% { left: 0; } 25% { left: 5px; } 50% { left: -5px; } 75% { left: 5px; } 100% { left: 0; } }`;
-        document.head.appendChild(style);
-
-        loadQuestion();
+        loadChoices();
     </script>
 </body>
 </html>
+
 
 
