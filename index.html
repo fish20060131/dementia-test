@@ -1,89 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>感知模擬器</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>失智症全感官模擬器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
-        /* 背景圖層 */
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        
+        /* 1. 背景圖層：夜市街道 */
         #bg {
-            position: fixed; width: 100%; height: 100%;
+            position: fixed; width: 100vw; height: 100vh;
             background: url('433436.jpg') no-repeat center bottom;
             background-size: cover;
-            filter: grayscale(0.5) blur(3px); /* 初始模擬：模糊+灰色 */
-            z-index: 1;
+            filter: grayscale(0.5) blur(2px); z-index: 1;
+            transform: scale(0.9); will-change: transform, filter;
         }
-        /* 隧道視野遮罩 */
-        #mask {
-            position: fixed; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%);
-            z-index: 5; pointer-events: none;
-        }
-        /* UI 介面 */
-        #clock { position: fixed; top: 10px; right: 10px; z-index: 10; font-size: 20px; }
-        #msg { position: fixed; top: 30%; width: 100%; text-align: center; z-index: 10; font-size: 18px; }
-        #btn {
-            position: fixed; bottom: 10%; right: 10%; z-index: 100;
-            padding: 15px 30px; background: #f44336; border: none; border-radius: 50px;
-            color: white; font-weight: bold; font-size: 18px;
-        }
+
+        /* 2. 焦慮泛紅與隧道視野 */
+        #anxiety { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: rgba(255,0,0,0); z-index: 11; pointer-events: none; transition: background 0.2s; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 12; pointer-events: none; }
+
+        /* 3. UI 元素 */
+        #clock { position: fixed; top: 20px; right: 20px; color: #fff; font-size: 1.2rem; z-index: 20; opacity: 0.8; }
+        #status { position: fixed; top: 15%; width: 100%; text-align: center; z-index: 2000; color: white; text-shadow: 2px 2px 4px black; pointer-events: none; }
+        
+        /* 4. 搖桿介面 */
+        #joy-base { position: fixed; bottom: 10%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 4000; border: 2px solid rgba(255,255,255,0.3); }
+        #joy-knob { position: absolute; width: 40px; height: 40px; background: #fff; border-radius: 50%; left: 30px; top: 30px; pointer-events: none; }
+        
+        #btn { position: fixed; bottom: 10%; right: 10%; padding: 15px 25px; background: #e74c3c; color: white; border: none; border-radius: 50px; z-index: 5000; font-weight: bold; }
+
+        /* 碎念文字 */
+        .whisper { position: fixed; color: #fff; z-index: 6000; pointer-events: none; animation: fadeout 2s forwards; white-space: nowrap; font-weight: bold; text-shadow: 1px 1px 3px #000; }
+        @keyframes fadeout { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-40px); } }
     </style>
 </head>
-<body onclick="startSound()">
+<body onclick="initSensory(event)">
 
     <div id="bg"></div>
-    <div id="mask"></div>
-    <div id="clock">正在讀取...</div>
-    <div id="msg">請點擊螢幕嘗試「找回意識」</div>
-    <button id="btn" onclick="recover(event)">恢復清醒 (0/3)</button>
+    <div id="anxiety"></div>
+    <div id="vignette"></div>
+    <div id="clock">14:23:05</div>
+    <div id="status">點擊螢幕開啟感官...</div>
+    <div id="joy-base"><div id="joy-knob"></div></div>
+    <button id="btn" onclick="tryRecover(event)">恢復清醒 (0/3)</button>
 
     <script>
-        let clicks = 0;
         let isDementia = true;
+        let recoverCount = 0;
+        let audioCtx, osc, gain;
+        let targetScale = 0.9, currentScale = 0.9;
+        let targetBlur = 2, currentBlur = 2;
 
-        // 1. 每秒更新時間 (強制運作)
+        const bg = document.getElementById('bg');
+        const knob = document.getElementById('joy-knob');
+        const base = document.getElementById('joy-base');
+
+        // 啟動聲音與碎念
+        function initSensory(e) {
+            if (!isDementia) return;
+            
+            // 碎念文字彈出
+            const texts = ["路口在哪？", "我想回家...", "他是誰？", "好吵...", "這條街走過嗎？"];
+            const div = document.createElement('div');
+            div.className = 'whisper';
+            div.style.left = e.clientX + 'px';
+            div.style.top = e.clientY + 'px';
+            div.innerText = texts[Math.floor(Math.random()*texts.length)];
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 2000);
+
+            // 聲音初始化
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                osc = audioCtx.createOscillator();
+                gain = audioCtx.createGain();
+                osc.type = 'brown';
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                osc.start();
+                document.getElementById('status').innerText = "感官已連結...";
+            }
+        }
+
+        // 時鐘亂跳
         setInterval(() => {
             const now = new Date();
-            if (isDementia) {
-                // 模擬時間感錯亂：秒數隨機變動
-                const fakeSec = Math.floor(Math.random() * 60);
-                document.getElementById('clock').innerText = "14:23:" + (fakeSec < 10 ? '0'+fakeSec : fakeSec);
-            } else {
-                // 正常時間
-                document.getElementById('clock').innerText = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
-            }
+            document.getElementById('clock').innerText = isDementia ? 
+                `14:${Math.floor(Math.random()*60).toString().padStart(2,'0')}:${Math.floor(Math.random()*60).toString().padStart(2,'0')}` : 
+                now.toLocaleTimeString('zh-TW', { hour12: false });
         }, 1000);
 
-        // 2. 啟動模擬 (點擊螢幕)
-        function startSound() {
-            if (!isDementia) return;
-            document.getElementById('msg').innerText = "我想往前走...但這條街是哪？";
-            // 可以在此處加入最簡單的聲音代碼
-        }
+        // 搖桿連動
+        base.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = base.getBoundingClientRect();
+            let dy = touch.clientY - (rect.top + rect.height / 2);
+            dy = Math.max(-40, Math.min(40, dy));
+            knob.style.transform = `translateY(${dy}px)`;
 
-        // 3. 恢復功能 (核心修復)
-        function recover(e) {
-            e.stopPropagation(); // 防止觸發背景點擊
-            clicks++;
-            document.getElementById('btn').innerText = "恢復清醒 (" + clicks + "/3)";
-
-            if (clicks >= 3) {
-                isDementia = false;
-                // 物理性移除所有特效
-                document.getElementById('bg').style.filter = "none";
-                document.getElementById('mask').style.display = "none";
-                document.getElementById('msg').innerText = "意識恢復清晰了。";
-                document.getElementById('btn').style.background = "#4CAF50";
-                document.getElementById('btn').innerText = "重新開始";
+            if (isDementia) {
+                // 向上推 = 縮放照片
+                targetScale = 0.9 + (Math.max(0, -dy) * 0.015);
+                targetBlur = 2 + (Math.abs(dy) * 0.15);
                 
-                // 如果已經是清醒狀態，再點一次就重整
-                if (clicks > 3) location.reload();
+                // 變紅與音量
+                let intensity = Math.abs(dy) / 40;
+                document.getElementById('anxiety').style.background = `rgba(255, 0, 0, ${intensity * 0.4})`;
+                if (gain) gain.gain.setTargetAtTime(intensity * 0.2, audioCtx.currentTime, 0.1);
             }
-        }
-    </script>
-</body>
-</html>
+        }, { passive: false });
+
+        base.addEventListener('touchend', () => {
+            knob.style.transform = `translateY(0)`;
+            document.getElementById('anxiety').style.background = `rgba(255, 0, 0, 0)`;
+            if (gain) gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+        });
+
+        // 動畫循環
+        function animate() {
+            currentScale += (targetScale - currentScale) * 0.05;
+            currentBlur += (targetBlur - currentBlur) * 0.05;
+            bg.style.transform = `scale(${currentScale})`;
+            bg.style.filter = isDementia ?
 
 
 
