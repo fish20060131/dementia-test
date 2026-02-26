@@ -2,138 +2,154 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
-    <title>感知模擬：視覺優化版</title>
+    <title>歸途：對話的選擇</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; -webkit-user-select: none; font-family: sans-serif; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
         #bg {
             position: fixed; width: 100vw; height: 100vh;
             background-image: url('433436.jpg'); background-position: center; background-size: cover;
-            z-index: 1; filter: grayscale(0.5) blur(3px); transform: scale(0.9);
-            transition: filter 3s, transform 3s; 
+            z-index: 1; filter: grayscale(0.8) blur(8px); transform: scale(1.1);
+            transition: all 0.8s ease;
         }
-        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 15%, rgba(0,0,0,0.98) 100%); z-index: 10; pointer-events: none; }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 10%, rgba(0,0,0,0.9) 100%); z-index: 10; pointer-events: none; }
         
-        /* 狀態文字：加強清晰度 */
-        #status { 
-            position: fixed; top: 12%; width: 100%; text-align: center; 
-            color: #fff; z-index: 20; letter-spacing: 3px; font-size: 1rem; 
-            font-weight: bold; text-shadow: 0 0 10px rgba(0,0,0,0.9), 0 0 5px rgba(255,255,255,0.5); 
-            pointer-events: none; 
+        /* 選項容器 */
+        #choice-container {
+            position: fixed; bottom: 15%; width: 100%; 
+            display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 1000;
         }
-        
-        /* 搖桿 */
-        #joy-base { position: fixed; bottom: 12%; left: 10%; width: 80px; height: 80px; background: rgba(255,255,255,0.05); border-radius: 50%; z-index: 999; border: 1px solid rgba(255,255,255,0.3); }
-        #joy-knob { position: absolute; width: 30px; height: 30px; background: #fff; border-radius: 50%; left: 25px; top: 25px; }
-        
-        /* 修改後的按鈕：變小、更精緻、不擋視線 */
-        #btn { 
-            position: fixed; bottom: 12%; right: 10%; 
-            min-width: 100px; padding: 10px 15px; background: rgba(0,0,0,0.6); 
-            color: #fff; border: 1.5px solid #fff; border-radius: 30px; 
-            z-index: 1000; font-weight: bold; font-size: 0.85rem;
-            box-shadow: 0 0 15px rgba(255,255,255,0.2);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            white-space: nowrap;
+        .choice-btn {
+            width: 80%; max-width: 300px; padding: 12px;
+            background: rgba(0,0,0,0.7); color: #fff;
+            border: 1px solid rgba(255,255,255,0.4); border-radius: 10px;
+            font-size: 0.95rem; text-align: center; transition: 0.3s;
         }
+        .choice-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.2); }
 
-        /* 碎念文字：加強發光感 */
-        .whisper { 
-            position: fixed; color: #fff; z-index: 500; pointer-events: none; 
-            animation: fadeUp 2.5s forwards; font-size: 1.2rem; font-weight: 900;
-            text-shadow: 2px 2px 0px #000, 0 0 10px rgba(255,255,255,0.8); 
-        }
-        @keyframes fadeUp { 0% { opacity: 0; transform: scale(0.8); } 15% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-60px); } }
+        /* 進度條（理智值） */
+        #progress-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); width: 70%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; z-index: 20; overflow: hidden; }
+        #progress-fill { width: 30%; height: 100%; background: #3498db; transition: width 0.5s ease; }
+
+        #status { position: fixed; top: 13%; width: 100%; text-align: center; color: #fff; font-size: 0.8rem; z-index: 20; text-shadow: 0 0 5px #000; }
+        
+        .whisper { position: fixed; color: #ff4d4d; z-index: 500; pointer-events: none; animation: fadeUp 1.5s forwards; font-weight: bold; }
+        @keyframes fadeUp { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-50px); } }
     </style>
 </head>
 <body>
     <div id="bg"></div>
     <div id="vignette"></div>
-    <div id="status">正在尋找歸途...</div>
-    <div id="joy-base"><div id="joy-knob"></div></div>
-    <button id="btn" onclick="next(event)">找回意識 (0/3)</button>
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+    <div id="status">捕捉意識中...</div>
+    
+    <div id="choice-container"></div>
 
     <script>
         let stage = 1;
-        let count = 0;
-        let active = true;
-        const texts1 = ["這是哪？", "我忘了...", "路好長...", "好吵...", "他們在看我嗎？"];
-        const texts2 = ["這是我家嗎？", "怎麼打不開...", "門壞了嗎？", "鑰匙呢？", "我想進去...", "打不開..."];
+        let score = 30; // 初始理智值
+        const bg = document.getElementById('bg');
+        const fill = document.getElementById('progress-fill');
+        const container = document.getElementById('choice-container');
 
-        function next(e) {
-            e.stopPropagation();
-            if (!active) { location.reload(); return; }
+        // 題目庫：正分（幫助）與負分（無助）
+        const questions = [
+            { s: 1, q: [ {t: "「放輕鬆，我們慢慢走」", p: 20}, {t: "「你怎麼又忘了路？」", p: -15} ] },
+            { s: 1, q: [ {t: "「我們去吃你最愛的點心」", p: 20}, {t: "「快一點，大家在等你」", p: -15} ] },
+            { s: 2, q: [ {t: "「沒關係，鑰匙慢慢找」", p: 20}, {t: "「這就是你家啊！快開門」", p: -25} ] },
+            { s: 2, q: [ {t: "「我陪在你身邊，別擔心」", p: 20}, {t: "「你到底在搞什麼？」", p: -25} ] }
+        ];
 
-            count++;
-            if (count < 3) {
-                // 按鈕縮小一點點，增加「捕捉」的感覺
-                e.target.innerText = (stage === 1 ? "捕捉意識 " : "轉動把手 ") + `(${count}/3)`;
-                e.target.style.left = (Math.random() * 60 + 15) + '%';
-                e.target.style.top = (Math.random() * 60 + 15) + '%';
-                
-                // 點擊干擾：背景晃動
-                document.getElementById('bg').style.transform = "scale(1.05)";
-                setTimeout(() => { if(active) document.getElementById('bg').style.transform = "scale(0.9)"; }, 150);
-            } else if (stage === 1) {
-                stage = 2; count = 0;
-                document.getElementById('bg').style.backgroundImage = "url('433455.jpg')";
-                document.getElementById('status').innerText = "抵達門口，但...";
-                e.target.innerText = "怎麼打不開？ (0/3)";
-                e.target.style.borderColor = "#ff4d4d"; // 第二關按鈕邊框變紅，增加急迫感
+        function loadQuestion() {
+            container.innerHTML = "";
+            let currentQ = questions.filter(item => item.s === stage);
+            let qData = currentQ[Math.floor(Math.random() * currentQ.length)];
+            
+            // 隨機排序選項
+            qData.q.sort(() => Math.random() - 0.5).forEach(choice => {
+                const btn = document.createElement('div');
+                btn.className = 'choice-btn';
+                btn.innerText = choice.t;
+                btn.onclick = () => handleChoice(choice.p);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleChoice(p) {
+            score += p;
+            if (score < 0) score = 0;
+            if (score > 100) score = 100;
+            
+            fill.style.width = score + '%';
+
+            if (p > 0) {
+                // 正確回饋：畫面變清晰彩色
+                bg.style.filter = "grayscale(0) blur(0px)";
+                bg.style.transform = "scale(1)";
+                setTimeout(() => updateEnvironment(), 1000);
             } else {
+                // 錯誤回饋：畫面劇烈震動
+                bg.style.filter = "grayscale(1) blur(15px)";
+                document.body.style.animation = "shake 0.3s infinite";
+                for(let i=0; i<5; i++) createWhisper();
+                setTimeout(() => {
+                    document.body.style.animation = "";
+                    updateEnvironment();
+                }, 800);
+            }
+
+            // 判斷關卡切換
+            if (score >= 60 && stage === 1) {
+                stage = 2;
+                bg.style.backgroundImage = "url('433455.jpg')";
+                document.getElementById('status').innerText = "抵達門口了...";
+            }
+            
+            if (score >= 100) {
                 finish();
+            } else {
+                loadQuestion();
             }
         }
 
-        function finish() {
-            active = false;
-            const b = document.getElementById('btn');
-            b.style.opacity = "0";
-            b.style.pointerEvents = "none";
-            document.getElementById('status').innerText = "門開了...";
-            
-            const bg = document.getElementById('bg');
-            bg.style.filter = "none";
-            bg.style.transform = "scale(1)";
-            document.getElementById('vignette').style.opacity = "0";
-            document.getElementById('joy-base').style.opacity = "0";
-
-            setTimeout(() => {
-                document.getElementById('status').innerText = "這是我家。";
-                setTimeout(() => {
-                    document.getElementById('status').innerText = "趁還記得，再多看一眼。";
-                    bg.style.transition = "filter 15s ease-in, opacity 12s ease-in";
-                    bg.style.filter = "grayscale(1) blur(10px)";
-                    bg.style.opacity = "0.2";
-                    
-                    setTimeout(() => {
-                        b.style.opacity = "1";
-                        b.style.pointerEvents = "auto";
-                        b.style.left = "50%"; b.style.top = "85%"; b.style.transform = "translateX(-50%)";
-                        b.style.background = "rgba(255,255,255,0.1)";
-                        b.style.borderColor = "rgba(255,255,255,0.3)";
-                        b.innerText = "重啟模擬";
-                        document.getElementById('status').innerText = "記憶已流逝。";
-                    }, 5000);
-                }, 4000);
-            }, 2000);
+        function updateEnvironment() {
+            let blurVal = (100 - score) / 10;
+            let grayVal = (100 - score) / 100;
+            bg.style.filter = `grayscale(${grayVal}) blur(${blurVal}px)`;
+            bg.style.transform = `scale(${0.9 + score/1000})`;
         }
 
-        window.addEventListener('touchstart', (e) => {
-            if (!active || e.target.id === 'btn') return;
+        function createWhisper() {
             const div = document.createElement('div');
             div.className = 'whisper';
-            div.style.left = e.touches[0].clientX + 'px';
-            div.style.top = e.touches[0].clientY + 'px';
-            const list = (stage === 1) ? texts1 : texts2;
-            div.innerText = list[Math.floor(Math.random()*list.length)];
+            div.style.left = Math.random() * 80 + '%';
+            div.style.top = Math.random() * 80 + '%';
+            div.innerText = stage === 1 ? "好混亂..." : "打不開！";
             document.body.appendChild(div);
-            setTimeout(() => div.remove(), 2500);
-        });
+            setTimeout(() => div.remove(), 1500);
+        }
 
-        // 搖桿邏輯
-        const base
+        function finish() {
+            container.innerHTML = "";
+            bg.style.filter = "none";
+            bg.style.transform = "scale(1)";
+            document.getElementById('status').innerText = "意識終於清醒了。";
+            const btn = document.createElement('div');
+            btn.className = 'choice-btn';
+            btn.style.borderColor = "#27ae60";
+            btn.innerText = "重新找回記憶";
+            btn.onclick = () => location.reload();
+            container.appendChild(btn);
+        }
 
+        // CSS 震動效果
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes shake { 0% { left: 0; } 25% { left: 5px; } 50% { left: -5px; } 75% { left: 5px; } 100% { left: 0; } }`;
+        document.head.appendChild(style);
 
+        loadQuestion();
+    </script>
+</body>
+</html>
 
 
