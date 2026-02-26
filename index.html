@@ -5,106 +5,121 @@
     <title>歸途：語言的重量</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; }
+        
+        /* 背景層 */
         #bg {
             position: fixed; width: 100vw; height: 100vh;
             background-image: url('433436.jpg'); background-position: center; background-size: cover;
-            z-index: 1; filter: grayscale(0.8) blur(8px); transform: scale(1.1);
-            transition: all 1s cubic-bezier(0.2, 0, 0.2, 1);
+            z-index: 1; filter: grayscale(1) blur(20px); transform: scale(1.2);
+            transition: all 1.5s cubic-bezier(0.2, 0, 0.2, 1);
         }
         #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 5%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; }
         
-        /* 狀態文字優化 */
-        #status-group { position: fixed; top: 10%; width: 100%; text-align: center; z-index: 20; }
-        #progress-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 10px auto; overflow: hidden; }
-        #progress-fill { width: 30%; height: 100%; background: #fff; box-shadow: 0 0 10px #fff; transition: width 0.6s ease; }
-        #status-text { color: #fff; font-size: 0.75rem; letter-spacing: 2px; opacity: 0.6; }
+        /* 封面與結尾遮罩 */
+        .overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 2000; background: #000; color: #fff; transition: opacity 2s; text-align: center;
+            padding: 20px; box-sizing: border-box;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+        
+        /* UI 元素 */
+        #status-group { position: fixed; top: 8%; width: 100%; text-align: center; z-index: 20; opacity: 0; transition: opacity 1s; }
+        #progress-bar { width: 150px; height: 2px; background: rgba(255,255,255,0.1); margin: 10px auto; overflow: hidden; }
+        #progress-fill { width: 30%; height: 100%; background: #fff; transition: width 0.8s ease; }
+        #status-text { color: rgba(255,255,255,0.5); font-size: 0.7rem; letter-spacing: 4px; }
 
-        /* 對話按鈕優化 */
+        /* 對話容器 */
         #choice-container {
-            position: fixed; bottom: 12%; width: 100%; 
-            display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 1000;
+            position: fixed; bottom: 10%; width: 100%; 
+            display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 1000;
+            opacity: 0; transition: opacity 1s;
         }
         .choice-btn {
-            width: 85%; max-width: 320px; padding: 14px 20px;
-            background: rgba(255,255,255,0.05); color: #fff;
-            border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;
-            font-size: 0.9rem; text-align: left; transition: all 0.3s;
-            backdrop-filter: blur(5px);
+            width: 85%; max-width: 320px; padding: 15px;
+            background: rgba(255,255,255,0.03); color: #fff;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;
+            font-size: 0.85rem; text-align: center; transition: 0.3s;
         }
         .choice-btn:active { background: #fff; color: #000; }
 
-        /* 負面碎念：顏色更鮮豔以示警告 */
-        .whisper { position: fixed; color: #ff3e3e; z-index: 500; pointer-events: none; animation: fadeUp 1.8s forwards; font-weight: bold; font-size: 1.2rem; text-shadow: 0 0 10px #000; }
-        @keyframes fadeUp { 0% { opacity: 0; transform: scale(0.8); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-80px); } }
+        /* 特效 */
+        .whisper { position: fixed; color: #ff3e3e; z-index: 500; pointer-events: none; animation: fadeUp 2s forwards; font-weight: bold; }
+        @keyframes fadeUp { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-80px); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
         
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        h1 { font-size: 1.5rem; letter-spacing: 8px; margin-bottom: 20px; font-weight: 300; }
+        p { font-size: 0.9rem; line-height: 1.8; color: #aaa; }
+        .start-hint { margin-top: 50px; font-size: 0.7rem; color: #555; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
     </style>
 </head>
 <body>
+
+    <div id="cover" class="overlay" onclick="startGame()">
+        <h1>歸途</h1>
+        <p>當熟悉的景象變得支離破碎<br>當回家的門變成陌生的牆<br>你能否在語言的迷霧中<br>抓牢最後一次清醒？</p>
+        <div class="start-hint">點擊螢幕，踏入迷霧</div>
+    </div>
+
     <div id="bg"></div>
     <div id="vignette"></div>
+
     <div id="status-group">
         <div id="progress-bar"><div id="progress-fill"></div></div>
-        <div id="status-text">捕捉微光中...</div>
+        <div id="status-text">意識殘存量</div>
     </div>
-    
     <div id="choice-container"></div>
+
+    <div id="end" class="overlay hidden">
+        <h1 id="end-title">門開了</h1>
+        <p id="end-msg">你找回了名字，找回了家。<br>雖然清醒只有一瞬，<br>但這張照片，我會替你記得。</p>
+        <div class="start-hint" onclick="location.reload()">再次嘗試</div>
+    </div>
 
     <script>
         let stage = 1;
         let score = 30;
+        let isStarted = false;
         const bg = document.getElementById('bg');
         const fill = document.getElementById('progress-fill');
         const container = document.getElementById('choice-container');
 
-        // 擴充後的對話庫
         const db = [
             // Stage 1: 夜市
-            { s: 1, options: [
-                {t: "「不急，我們牽著手慢慢看」", p: 15},
-                {t: "「你再這樣亂走我就不管你了」", p: -20},
-                {t: "「你先冷靜，這沒什麼好怕的」", p: -5}
-            ]},
-            { s: 1, options: [
-                {t: "「肚子餓了嗎？要不要吃蔥油餅？」", p: 15},
-                {t: "「到底要跟你說幾次路在那邊？」", p: -20},
-                {t: "「哎呀，你記錯了啦，不是這條」", p: -10}
-            ]},
-            { s: 1, options: [
-                {t: "「你看，那邊的燈籠好漂亮」", p: 15},
-                {t: "「大家都在看你，別鬧了」", p: -20},
-                {t: "「你是認真想不起來嗎？」", p: -15}
-            ]},
+            { s: 1, options: [{t: "「不急，我們牽著手慢慢走」", p: 15}, {t: "「你再這樣亂走我就不管你了」", p: -25}, {t: "「這沒什麼好怕的，冷靜點」", p: -5}, {t: "「大家都看著你，別丟臉」", p: -20}] },
+            { s: 1, options: [{t: "「肚子餓了嗎？吃點熱的吧」", p: 15}, {t: "「快走！你在發什麼呆？」", p: -20}, {t: "「那是幻覺，別亂指」", p: -15}, {t: "「你要我說幾次你才懂？」", p: -25}] },
+            { s: 1, options: [{t: "「沒事，我也常迷路，我們一起找」", p: 20}, {t: "「你到底在找什麼東西？」", p: -10}, {t: "「這條路我們走一百遍了！」", p: -25}, {t: "「閉嘴，跟我走就對了」", p: -30}] },
             // Stage 2: 家門口
-            { s: 2, options: [
-                {t: "「沒事，我也常忘記帶鑰匙」", p: 15},
-                {t: "「你連自己家門都打不開？」", p: -25},
-                {t: "「用力轉一下就開了，快點」", p: -10}
-            ]},
-            { s: 2, options: [
-                {t: "「我們在門口坐一下，休息一下」", p: 15},
-                {t: "「這是你住了三十年的家耶！」", p: -20},
-                {t: "「你就不能專心一點開門嗎？」", p: -15}
-            ]},
-            { s: 2, options: [
-                {t: "「我幫你一起轉，一、二、三」", p: 15},
-                {t: "「笨手笨腳的，走開我來」", p: -30},
-                {t: "「你是累了嗎？怎麼變這樣」", p: -10}
-            ]}
+            { s: 2, options: [{t: "「慢慢來，我也常忘記帶鑰匙」", p: 15}, {t: "「這就是你家！快開門啊」", p: -20}, {t: "「你連開門都不會了嗎？」", p: -30}, {t: "「別鬧了，大家都在等你」", p: -15}] },
+            { s: 2, options: [{t: "「我們在門口坐一下，休息一會」", p: 15}, {t: "「你把鎖弄壞了怎麼辦？」", p: -20}, {t: "「用力轉一下，你沒吃飯嗎？」", p: -15}, {t: "「你到底是誰？為什麼不進去？」", p: -35}] },
+            { s: 2, options: [{t: "「我幫你一起抓把手，一、二、三」", p: 15}, {t: "「這不是你家難道是我家？」", p: -20}, {t: "「你故意的是不是？」", p: -25}, {t: "「想不起來就算了，隨便你」", p: -15}] }
         ];
+
+        function startGame() {
+            document.getElementById('cover').classList.add('hidden');
+            document.getElementById('status-group').style.opacity = "1";
+            container.style.opacity = "1";
+            isStarted = true;
+            updateVisuals();
+            loadChoices();
+        }
 
         function loadChoices() {
             container.innerHTML = "";
             let filtered = db.filter(item => item.s === stage);
-            // 隨機選取一組對話
             let group = filtered[Math.floor(Math.random() * filtered.length)];
             
             group.options.sort(() => Math.random() - 0.5).forEach(o => {
                 const btn = document.createElement('div');
                 btn.className = 'choice-btn';
                 btn.innerText = o.t;
-                btn.onclick = () => handleImpact(o.p);
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    handleImpact(o.p);
+                };
                 container.appendChild(btn);
             });
         }
@@ -115,26 +130,23 @@
             fill.style.width = score + '%';
 
             if (p > 0) {
-                // 正向：瞬間清明
                 bg.style.filter = "grayscale(0) blur(0px)";
                 bg.style.transform = "scale(1)";
-                setTimeout(() => updateVisuals(), 800);
+                setTimeout(() => updateVisuals(), 1000);
             } else {
-                // 負向：壓力爆發
-                bg.style.filter = "grayscale(1) blur(20px) contrast(1.5)";
-                document.body.style.animation = "shake 0.4s 2";
-                for(let i=0; i<6; i++) spawnWhisper();
+                bg.style.filter = "grayscale(1) blur(25px) brightness(0.5)";
+                document.body.style.animation = "shake 0.5s";
+                for(let i=0; i<8; i++) spawnWhisper();
                 setTimeout(() => {
                     document.body.style.animation = "";
                     updateVisuals();
                 }, 800);
             }
 
-            // 進階判定
             if (score >= 65 && stage === 1) {
                 stage = 2;
                 bg.style.backgroundImage = "url('433455.jpg')";
-                document.getElementById('status-text').innerText = "抵達門口了...";
+                document.getElementById('status-text').innerText = "抵達家門了...";
             }
             
             if (score >= 100) {
@@ -145,10 +157,10 @@
         }
 
         function updateVisuals() {
-            let b = (100 - score) / 8;
+            let b = (100 - score) / 5;
             let g = (100 - score) / 100;
             bg.style.filter = `grayscale(${g}) blur(${b}px)`;
-            bg.style.transform = `scale(${0.9 + score/1000})`;
+            bg.style.transform = `scale(${1 + (100-score)/500})`;
         }
 
         function spawnWhisper() {
@@ -156,30 +168,27 @@
             d.className = 'whisper';
             d.style.left = Math.random() * 80 + '%';
             d.style.top = Math.random() * 80 + '%';
-            const failTexts = ["別催我...", "好可怕...", "腦袋好亂", "你是誰？", "對不起...", "我不是故意的"];
+            const failTexts = ["別兇我...", "頭好痛", "走開", "我是壞孩子嗎", "救救我", "不要大聲"];
             d.innerText = failTexts[Math.floor(Math.random()*failTexts.length)];
             document.body.appendChild(d);
-            setTimeout(() => d.remove(), 1800);
+            setTimeout(() => d.remove(), 2000);
         }
 
         function showEnding() {
-            container.innerHTML = "";
+            isStarted = false;
+            container.style.opacity = "0";
+            document.getElementById('status-group').style.opacity = "0";
             bg.style.filter = "none";
             bg.style.transform = "scale(1)";
-            document.getElementById('status-text').innerText = "這是我家，我想起來了。";
-            const btn = document.createElement('div');
-            btn.className = 'choice-btn';
-            btn.style.textAlign = "center";
-            btn.style.borderColor = "#fff";
-            btn.innerText = "重新感受清醒";
-            btn.onclick = () => location.reload();
-            container.appendChild(btn);
+            
+            setTimeout(() => {
+                document.getElementById('end').classList.remove('hidden');
+            }, 2000);
         }
-
-        loadChoices();
     </script>
 </body>
 </html>
+
 
 
 
