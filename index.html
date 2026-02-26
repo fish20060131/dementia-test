@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>失智症視角體驗</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; background: black; color: white; font-family: sans-serif; overflow: hidden; }
+        #map { width: 100%; height: 100vh; filter: grayscale(1) blur(2px); transition: 0.5s; }
+        #status { position: fixed; bottom: 20px; width: 100%; z-index: 2000; text-align: center; font-size: 1.2rem; text-shadow: 2px 2px 4px black; }
+        .vignette { position: fixed; top: 0; pointer-events: none; width: 100%; height: 100%; 
+                    background: radial-gradient(circle, transparent 20%, black 90%); z-index: 1000; }
+    </style>
+</head>
+<body>
+    <div class="vignette"></div>
+    <div id="map"></div>
+    <div id="status">正在初始化...請允許定位權限</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { zoomControl: false }).setView([25.033, 121.565], 18);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        navigator.geolocation.watchPosition((pos) => {
+            let offsetLat = pos.coords.latitude + (Math.random() - 0.5) * 0.005;
+            let offsetLng = pos.coords.longitude + (Math.random() - 0.5) * 0.005;
+            map.panTo([offsetLat, offsetLng]);
+            document.getElementById('status').innerText = "這裡...是哪裡？我明明記得路...";
+            document.getElementById('map').style.filter = `grayscale(1) blur(${Math.random() * 6}px)`;
+        }, (err) => { document.getElementById('status').innerText = "請在手機開啟 GPS 並允許定位"; }, { enableHighAccuracy: true });
+    </script>
+</body>
+</html>
