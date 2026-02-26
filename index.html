@@ -2,48 +2,81 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>失智症視角：街道幻覺版</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>失智症視角：操縱桿模擬版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
-        /* 使用一張真實街道圖片作為背景 */
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; touch-action: none; }
         #street-bg {
-            position: fixed; width: 110vw; height: 110vh;
-            background-image: url('https://picsum.photos/id/402/2000/1200');
+            position: fixed; width: 200vw; height: 200vh;
+            background-image: url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=80&w=2000');
             background-size: cover; background-position: center;
-            filter: grayscale(0.4) blur(2px); transition: 0.5s;
-            left: -5vw; top: -5vh;
+            filter: grayscale(0.5) blur(2px); transition: 0.2s linear;
+            left: -50vw; top: -50vh; transform: scale(1);
         }
-        #status { position: fixed; bottom: 100px; width: 100%; text-align: center; z-index: 2000; color: white; text-shadow: 2px 2px 4px black; }
+        /* 操縱桿區域 */
+        #joystick-container {
+            position: fixed; bottom: 50px; left: 50px; width: 120px; height: 120px;
+            background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 4000; touch-action: none;
+        }
+        #joystick-knob {
+            position: absolute; width: 50px; height: 50px; background: #fff;
+            border-radius: 50%; left: 35px; top: 35px; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #status { position: fixed; top: 20px; width: 100%; text-align: center; z-index: 2000; color: white; text-shadow: 2px 2px 4px black; }
         #recover-btn { 
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            padding: 15px 30px; background: #e74c3c; color: white; border: none;
-            border-radius: 50px; font-size: 1.1rem; z-index: 3000;
+            position: fixed; bottom: 50px; right: 30px; padding: 15px 25px; 
+            background: #e74c3c; color: white; border: none; border-radius: 50px; z-index: 3000;
         }
-        .clear-vision { filter: none !important; transform: scale(1) rotate(0deg) !important; }
+        .clear-vision { filter: none !important; transition: 0.5s !important; }
     </style>
 </head>
 <body>
     <div id="street-bg"></div>
-    <div id="status">正在感應街道資訊...</div>
+    <div id="status">使用左下角操縱桿探索街道</div>
+    
+    <div id="joystick-container"><div id="joystick-knob"></div></div>
+    
     <button id="recover-btn">點擊恢復清醒</button>
 
     <script>
         let isDementiaMode = true;
+        let posX = -50, posY = -50, scale = 1;
         const bg = document.getElementById('street-bg');
+        const knob = document.getElementById('joystick-knob');
+        const container = document.getElementById('joystick-container');
 
-        navigator.geolocation.watchPosition((pos) => {
+        // 操縱桿邏輯
+        container.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const rect = container.getBoundingClientRect();
+            let x = touch.clientX - rect.left - 60;
+            let y = touch.clientY - rect.top - 60;
+            
+            // 限制移動範圍
+            const dist = Math.min(Math.sqrt(x*x + y*y), 50);
+            const angle = Math.atan2(y, x);
+            knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
+
+            // 模擬位移與前進 (y控制縮放與上下, x控制左右)
             if (isDementiaMode) {
-                // 當你走動時，街道圖片會產生旋轉與縮放幻覺
-                let rotate = (Math.random() - 0.5) * 10; 
-                let scale = 1 + (Math.random() * 0.1);
-                bg.style.transform = `rotate(${rotate}deg) scale(${scale})`;
-                bg.style.filter = `grayscale(0.5) blur(${Math.random() * 4}px)`;
-                document.getElementById('status').innerText = "這條路...我應該走過，但它一直在變...";
+                posX -= x * 0.1 + (Math.random() - 0.5) * 5; // 加入隨機偏移
+                posY -= y * 0.1 + (Math.random() - 0.5) * 5;
+                scale += y * -0.001; // 往前推圖片放大(前進)
+                bg.style.filter = `grayscale(0.5) blur(${Math.abs(y)*0.1}px)`;
+                document.getElementById('status').innerText = "我想前進...但這條路在晃...";
             } else {
-                document.getElementById('status').innerText = "看清楚了，這只是一條平凡的路。";
+                posX -= x * 0.1;
+                posY -= y * 0.1;
+                scale += y * -0.001;
             }
-        }, null, { enableHighAccuracy: true });
+            bg.style.left = posX + 'vw';
+            bg.style.top = posY + 'vh';
+            bg.style.transform = `scale(${scale})`;
+        });
+
+        container.addEventListener('touchend', () => {
+            knob.style.transform = `translate(0,0)`;
+        });
 
         document.getElementById('recover-btn').addEventListener('click', function() {
             isDementiaMode = !isDementiaMode;
@@ -60,3 +93,4 @@
     </script>
 </body>
 </html>
+
