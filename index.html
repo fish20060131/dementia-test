@@ -1,38 +1,129 @@
-// 強化後的對話互動邏輯
-function spawnWhisper(e) {
-    if (!isDementiaMode) return;
-    if (!audioCtx) initAudio();
-    
-    // 更有深度的碎念內容
-    const texts = [
-        "這條街...剛才走過嗎？", 
-        "紅綠燈...是什麼顏色？", 
-        "家門口有棵樹...樹呢？", 
-        "他們在看我嗎？", 
-        "東西呢？我的袋子呢？",
-        "1...2...下一格是幾？",
-        "太亮了...",
-        "那是誰？很面善...",
-        "慢...為什麼要慢？"
-    ];
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>失智症全感官：對話強化版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; font-family: "Microsoft JhengHei", sans-serif; }
+        #street-bg {
+            position: fixed; width: 100vw; height: 100vh;
+            background-image: url('433436.jpg');
+            background-size: cover; background-position: center bottom;
+            filter: grayscale(0.5) blur(2px); z-index: 1; transform: scale(0.85);
+        }
+        #vignette { position: fixed; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.95) 100%); z-index: 10; pointer-events: none; }
+        #clock { position: fixed; top: 20px; right: 20px; color: rgba(255,255,255,0.7); font-size: 1.2rem; z-index: 20; }
+        #status { position: fixed; top: 15%; width: 100%; text-align: center; z-index: 2000; color: white; text-shadow: 2px 2px 4px black; pointer-events: none; }
+        #joystick-container { position: fixed; bottom: 10%; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 4000; border: 1px solid rgba(255,255,255,0.2); }
+        #joystick-knob { position: absolute; width: 40px; height: 40px; background: #fff; border-radius: 50%; left: 30px; top: 30px; }
+        #recover-btn { position: fixed; bottom: 10%; right: 10%; padding: 15px 25px; background: #e74c3c; color: white; border: none; border-radius: 50px; z-index: 3000; font-weight: bold; }
+        
+        /* 碎念文字樣式 */
+        .whisper { 
+            position: fixed; color: rgba(255,255,255,0.6); 
+            z-index: 15; pointer-events: none; 
+            animation: fadeout 2.5s forwards; 
+            white-space: nowrap; font-weight: bold;
+        }
+        @keyframes fadeout { 
+            0% { opacity: 0; transform: scale(0.5) translateY(0); }
+            20% { opacity: 1; }
+            100% { opacity: 0; transform: scale(1.2) translateY(-50px); } 
+        }
+    </style>
+</head>
+<body onclick="spawnWhisper(event)">
+    <div id="street-bg"></div>
+    <div id="vignette"></div>
+    <div id="clock">--:--:--</div>
+    <div id="status">點擊畫面開始感覺...</div>
+    <div id="joystick-container"><div id="joystick-knob"></div></div>
+    <button id="recover-btn" onclick="tryRecover(event)">恢復清醒 (0/3)</button>
 
-    let div = document.createElement('div');
-    div.className = 'whisper';
-    
-    // 隨機樣式讓文字看起來更像混亂的思緒
-    const fontSize = 0.8 + Math.random() * 0.7; // 隨機大小
-    const rotation = (Math.random() - 0.5) * 30; // 隨機歪斜
-    
-    div.style.left = e.clientX + 'px';
-    div.style.top = e.clientY + 'px';
-    div.style.fontSize = `${fontSize}rem`;
-    div.style.transform = `rotate(${rotation}deg)`;
-    div.style.color = `rgba(255,255,255,${0.3 + Math.random()*0.5})`;
-    
-    div.innerText = texts[Math.floor(Math.random()*texts.length)];
-    document.body.appendChild(div);
-    
-    // 讓文字稍微飄動後消失
-    setTimeout(() => div.remove(), 2500);
+    <script>
+        let isDementiaMode = true;
+        let targetScale = 0.85, currentScale = 0.85;
+        let targetBlur = 2, currentBlur = 2;
+        let recoverClicks = 0;
+        let audioCtx, gainNode;
 
+        function spawnWhisper(e) {
+            if (!isDementiaMode) return;
+            if (!audioCtx) initAudio();
+            
+            const texts = ["這條路走過嗎？", "紅綠燈...什麼顏色？", "他是誰？", "家在哪？", "好吵...", "那是我的袋子嗎？", "慢...要慢一點...", "1..2..3..", "這裡是夜市嗎？"];
+            let div = document.createElement('div');
+            div.className = 'whisper';
+            div.style.left = e.clientX + 'px';
+            div.style.top = e.clientY + 'px';
+            div.style.transform = `rotate(${(Math.random()-0.5)*30}deg)`;
+            div.innerText = texts[Math.floor(Math.random()*texts.length)];
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 2500);
+        }
 
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let osc = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+            osc.type = 'brown';
+            osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            osc.start();
+        }
+
+        setInterval(() => {
+            let now = new Date();
+            document.getElementById('clock').innerText = isDementiaMode ? 
+                14:${Math.floor(Math.random()*60)}:${Math.floor(Math.random()*60)} : 
+                now.toLocaleTimeString('zh-TW', { hour12: false });
+        }, 1000);
+
+        const bg = document.getElementById('street-bg');
+        const knob = document.getElementById('joystick-knob');
+        const container = document.getElementById('joystick-container');
+
+        container.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const rect = container.getBoundingClientRect();
+            let y = touch.clientY - rect.top - 50;
+            knob.style.transform = `translate(0, ${y}px)`;
+            if (isDementiaMode) {
+                targetScale = 0.85 + (Math.max(0, -y) * 0.015); 
+                targetBlur = 2 + (Math.abs(y) * 0.15);
+                if (gainNode) gainNode.gain.setTargetAtTime(Math.abs(y)/500, audioCtx.currentTime, 0.1);
+            }
+        });
+
+        function update() {
+            if (isDementiaMode) {
+                currentScale += (targetScale - currentScale) * 0.05;
+                currentBlur += (targetBlur - currentBlur) * 0.05;
+                bg.style.transform = `scale(${currentScale})`;
+                bg.style.filter = `grayscale(0.5) blur(${currentBlur}px)`;
+            }
+            requestAnimationFrame(update);
+        }
+        update();
+
+        function tryRecover(e) {
+            e.stopPropagation(); // 防止點按鈕也觸發碎念
+            recoverClicks++;
+            const btn = document.getElementById('recover-btn');
+            btn.innerText = `恢復清醒 (${recoverClicks}/3)`;
+            if (recoverClicks >= 3) {
+                isDementiaMode = false;
+                bg.style.transform = "scale(1)";
+                bg.style.filter = "none";
+                document.getElementById('vignette').style.opacity = "0";
+                document.getElementById('status').innerText = "終於看清楚了。";
+                if (gainNode) gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+                btn.innerText = "重新進入模擬";
+                btn.style.background = "#27ae60";
+                recoverClicks = 0;
+            }
+        }
+    </script>
+</body>
+</html>
